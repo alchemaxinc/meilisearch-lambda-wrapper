@@ -1,0 +1,22 @@
+name: Semantic Versioning and Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  semantic-release:
+    name: Semantic Versioning and Release
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write
+      contents: write
+      id-token: write
+      pull-requests: write
+
+    steps:
+      - name: Version and release
+        uses: alchemaxinc/composite-toolbox/semantic-release@v1

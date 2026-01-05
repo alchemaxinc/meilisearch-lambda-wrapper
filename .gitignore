@@ -1,0 +1,12 @@
+# IDE
+.idea
+.build
+dist/
+
+# OSX
+*.DS_Store
+
+# Python
+.venv/
+__pycache__/
+*.pyc

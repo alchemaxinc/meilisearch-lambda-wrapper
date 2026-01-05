@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BLACK_VERSION: "24.10.0"
+  PRETTIER_VERSION: "3.3.3"
+  COMMITLINT_CLI_VERSION: "20.2.0"
+
+jobs:
+  install-commitlint:
+    runs-on: ubuntu-latest
+    steps:
+      - &checkout-code
+        name: Checkout code (shallow)
+        uses: actions/checkout@v5
+
+      - &cache-commitlint
+        name: Cache Commitlint
+        id: cache-commitlint
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: v4-commitlint-${{ env.COMMITLINT_CLI_VERSION }}
+
+      - name: Install Commitlint
+        if: steps.cache-commitlint.outputs.cache-hit != 'true'
+        run: npm i -D @commitlint/cli@${{ env.COMMITLINT_CLI_VERSION }} @commitlint/config-conventional
+
+  run-commitlint:
+    runs-on: ubuntu-latest
+    needs: install-commitlint
+    steps:
+      - name: Checkout code (full)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - *cache-commitlint
+
+      - name: Run commitlint
+        run: |
+          git checkout main
+          git checkout -
+          ./node_modules/.bin/commitlint --from main --to HEAD --verbose
+
+  install-prettier:
+    runs-on: ubuntu-latest
+    steps:
+      - *checkout-code
+
+      - &cache-prettier
+        name: Cache Prettier
+        id: cache-prettier
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: v1-prettier-${{ env.PRETTIER_VERSION }}
+
+      - name: Install Prettier
+        if: steps.cache-prettier.outputs.cache-hit != 'true'
+        run: npm i -D prettier@${{ env.PRETTIER_VERSION }}
+
+  run-lint:
+    runs-on: ubuntu-latest
+    needs: install-prettier
+    steps:
+      - *checkout-code
+
+      - *cache-prettier
+      - name: Run Prettier check
+        run: ./node_modules/.bin/prettier --check .
+
+      # Create a temporary file so setup-python can hash it for the cache key
+      - name: Create Black lockfile
+        run: echo "black==${{ env.BLACK_VERSION }}" > black-requirements.txt
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          cache: "pip" # Natively handles caching ~/.cache/pip
+          python-version: "3.13"
+          cache-dependency-path: black-requirements.txt
+
+      - name: Install Black
+        # No manual cache check needed; pip will automatically use the cache setup-python restored if it exists.
+        run: pip install -r black-requirements.txt
+
+      - name: Run Black check
+        run: black --check .
+
+  test-integration:
+    runs-on: ubuntu-latest
+    needs: [run-lint, run-commitlint]
+    steps:
+      - *checkout-code
+
+      - name: Run integration tests
+        run: make test-integration
