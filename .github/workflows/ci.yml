@@ -8,6 +8,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  PYTHON_VERSION: "3.13"
   BLACK_VERSION: "24.10.0"
   PRETTIER_VERSION: "3.3.3"
   COMMITLINT_CLI_VERSION: "20.2.0"
@@ -81,14 +82,13 @@ jobs:
         run: echo "black==${{ env.BLACK_VERSION }}" > black-requirements.txt
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           cache: "pip" # Natively handles caching ~/.cache/pip
-          python-version: "3.13"
+          python-version: "${{ env.PYTHON_VERSION }}"
           cache-dependency-path: black-requirements.txt
 
       - name: Install Black
-        # No manual cache check needed; pip will automatically use the cache setup-python restored if it exists.
         run: pip install -r black-requirements.txt
 
       - name: Run Black check

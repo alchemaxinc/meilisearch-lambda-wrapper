@@ -1,9 +1,9 @@
 from http.server import HTTPServer
 
-import config
-from logging_config import get_logger
-from meilisearch import MeiliSearchWrapper
-from proxy import InterceptingProxy
+from . import config
+from .logging_config import get_logger
+from .meilisearch import MeiliSearchWrapper
+from .proxy import InterceptingProxy
 
 logger = get_logger(__name__)
 

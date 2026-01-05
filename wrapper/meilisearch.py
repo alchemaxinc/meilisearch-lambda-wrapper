@@ -6,8 +6,8 @@ import time
 
 import requests
 
-import config
-from logging_config import get_logger
+from . import config
+from .logging_config import get_logger
 
 logger = get_logger(__name__)
 

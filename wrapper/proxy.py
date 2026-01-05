@@ -4,9 +4,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import requests
 
-import config
-from logging_config import get_logger
-from meilisearch import MeiliSearchWrapper
+from . import config
+from .logging_config import get_logger
+from .meilisearch import MeiliSearchWrapper
 
 logger = get_logger(__name__)
 
