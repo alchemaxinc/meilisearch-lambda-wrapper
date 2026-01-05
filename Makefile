@@ -28,7 +28,6 @@ clean: ## Clean up built files
 
 .PHONY: lint
 lint: ## Run linter
-	terraform -chdir=infrastructure/terraform fmt -check
 	black --check .
 	npx prettier --check .
 

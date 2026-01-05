@@ -19,8 +19,8 @@ services:
 
   integration-tests:
     build:
-      context: ..
-      dockerfile: test/Dockerfile
+      context: ../../
+      dockerfile: wrapper/test/Dockerfile
     environment:
       MEILI_PORT: "8080"
       MEILI_HOST: "meili-wrapper"

@@ -31,6 +31,7 @@ class MeiliSearchIntegrationTests(unittest.TestCase):
         self.headers = {
             "Authorization": f"Bearer {self.MASTER_KEY}",
         }
+        self.maxDiff = None
 
     def _step_1_test_seed_indexes(self):
         csv_file_path = os.path.join(self.FIXTURES_DIR, "movies.csv")
@@ -72,8 +73,8 @@ class MeiliSearchIntegrationTests(unittest.TestCase):
                 continue
 
             expected_details = {
-                "receivedDocuments": 100,
-                "indexedDocuments": 100,
+                "receivedDocuments": 31944,
+                "indexedDocuments": 31944,
             }
 
             actual_details = {
@@ -99,7 +100,7 @@ class MeiliSearchIntegrationTests(unittest.TestCase):
         expected_response = {
             "results": [
                 {
-                    "uid": "person",
+                    "uid": "movies",
                     "createdAt": mock.ANY,
                     "updatedAt": mock.ANY,
                     "primaryKey": "id",
@@ -130,13 +131,13 @@ class MeiliSearchIntegrationTests(unittest.TestCase):
         expected_task = {
             "uid": mock.ANY,
             "batchUid": mock.ANY,
-            "indexUid": "person",
+            "indexUid": "movies",
             "status": "succeeded",
             "type": "documentAdditionOrUpdate",
             "canceledBy": None,
             "details": {
-                "receivedDocuments": 100,
-                "indexedDocuments": 100,
+                "receivedDocuments": 31944,
+                "indexedDocuments": 31944,
             },
             "error": None,
             "duration": mock.ANY,
