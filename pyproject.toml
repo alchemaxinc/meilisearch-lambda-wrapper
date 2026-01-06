@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "meilisearch-lambda-wrapper"
+version = "0.0.0"
+description = "A Python HTTP proxy wrapper for MeiliSearch on AWS Lambda"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+    { name = "Alchemax" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "certifi==2025.11.12",
+    "charset-normalizer==3.4.4",
+    "idna==3.11",
+    "requests==2.32.5",
+    "urllib3==2.6.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/alchemaxinc/meilisearch-lambda-wrapper"
+
+[project.scripts]
+meilisearch-lambda-wrapper = "wrapper.app:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["wrapper*"]
+exclude = ["wrapper.test*"]
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]

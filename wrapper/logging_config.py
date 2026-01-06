@@ -4,7 +4,7 @@ import json
 import logging
 import sys
 
-from config import LOG_LEVEL, LOG_LEVELS
+from .config import LOG_LEVEL, LOG_LEVELS
 
 
 class JSONFormatter(logging.Formatter):
