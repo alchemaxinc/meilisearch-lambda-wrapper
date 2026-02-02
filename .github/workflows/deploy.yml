@@ -1,10 +1,11 @@
 name: Semantic Versioning and Release
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  workflow_run:
+    workflows: ["CI"]
+    branches: ["main"]
+    types:
+      - completed
 
 permissions:
   contents: write
@@ -13,6 +14,7 @@ jobs:
   semantic-release:
     name: Semantic Versioning and Release
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     permissions:
       issues: write
