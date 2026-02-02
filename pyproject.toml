@@ -33,7 +33,7 @@ meilisearch-lambda-wrapper = "wrapper.app:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["wrapper*"]
-exclude = ["wrapper.test*"]
+exclude = ["wrapper.test*", "infrastructure*"]
 
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
