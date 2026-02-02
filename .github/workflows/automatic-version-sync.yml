@@ -136,11 +136,11 @@ jobs:
           pr-body: |
             This PR updates the Meilisearch Docker version in the Dockerfile to the latest available version.
 
-            - Previous version: ${{ needs.get-current-local-meilisearch-docker-version.outputs.local_version }}
-            - New version: ${{ needs.get-newest-meiliseach-docker-version.outputs.latest_version }}
+            - Previous version: `${{ needs.get-current-local-meilisearch-docker-version.outputs.local_version }}`
+            - New version: `${{ needs.get-newest-meiliseach-docker-version.outputs.latest_version }}`
 
       - name: Auto-merge Pull Request
-        if: inputs.auto-merge == 'true' && steps.open-pr.outcome == 'success'
+        if: steps.open-pr.outcome == 'success'
         uses: alchemaxinc/composite-toolbox/merge-pr@v1
         with:
           token: ${{ inputs.token }}
