@@ -38,3 +38,33 @@ jobs:
         uses: alchemaxinc/composite-toolbox/semantic-release@v1
         with:
           token: ${{ steps.app.outputs.token }}
+
+      - name: Check for changes
+        id: check_changes
+        uses: alchemaxinc/composite-toolbox/check-changes@v1
+        with:
+          files: "pyproject.toml"
+
+      - name: Create Pull Request for version bump
+        id: open-pr
+        if: steps.check_changes.outputs.has_changes == 'true'
+        uses: alchemaxinc/composite-toolbox/create-pr@v1
+        with:
+          token: ${{ steps.app.outputs.token }}
+          base-branch: "main"
+          branch-prefix: "chore/auto/semantic-release"
+          files: "pyproject.toml"
+          commit-message: "chore(semantic-release): bump version in pyproject.toml"
+          pr-title: "chore: semantic release version bump"
+          pr-body: |
+            This PR updates the version in pyproject.toml after semantic-release created a new release.
+
+            This is an automated PR created by the semantic release workflow.
+
+      - name: Auto-merge Pull Request
+        if: steps.open-pr.outcome == 'success'
+        uses: alchemaxinc/composite-toolbox/merge-pr@v1
+        with:
+          token: ${{ steps.app.outputs.token }}
+          merge-method: "squash"
+          pull-request-number: ${{ steps.open-pr.outputs.pr_number }}

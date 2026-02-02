@@ -4,14 +4,7 @@
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
     "@semantic-release/github",
-    "@covage/semantic-release-pyproject-plugin",
-    [
-      "@semantic-release/git",
-      {
-        "assets": ["*.md", "pyproject.toml"],
-        "message": "chore(semantic-release): release ${nextRelease.version}"
-      }
-    ]
+    "@covage/semantic-release-pyproject-plugin"
   ],
   "repositoryUrl": "https://github.com/alchemaxinc/meilisearch-lambda-wrapper",
   "tagFormat": "v${version}"
