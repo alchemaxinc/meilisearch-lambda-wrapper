@@ -8,7 +8,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: "3.13"
+  PYTHON_VERSION: "3.14"
   BLACK_VERSION: "24.10.0"
   PRETTIER_VERSION: "3.3.3"
   COMMITLINT_CLI_VERSION: "20.2.0"

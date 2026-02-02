@@ -1,0 +1,128 @@
+name: Automatic Version Synchronization
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *" # Daily at midnight
+
+env:
+  PYTHON_VERSION: "3.14"
+
+jobs:
+  get-current-local-meilisearch-docker-version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - &checkout-code
+        name: Checkout code (shallow)
+        uses: actions/checkout@v5
+
+      - name: Get current local Meilisearch Docker version
+        id: get-local-version
+        run: |
+          LOCAL_VERSION=$(sed -nE 's/^FROM[[:space:]]+getmeili\/meilisearch:([^[:space:]]+).*/\1/p' Dockerfile)
+          if [ -z "$LOCAL_VERSION" ]; then
+            echo "Failed to extract Meilisearch image tag from Dockerfile." >&2
+            exit 1
+          fi
+          echo "local_version=$LOCAL_VERSION" >> "$GITHUB_OUTPUT"
+
+  get-newest-meiliseach-docker-version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - *checkout-code
+
+      - &setup-python
+        name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          cache: "pip"
+          python-version: "${{ env.PYTHON_VERSION }}"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Synchronize versions
+        working-directory: infrastructure/sync_versions
+        run: |
+          LATEST_VERSION=$(python get_latest_meilisearch_docker_version.py)
+          if [ -z "$LATEST_VERSION" ]; then
+            echo "Failed to extract latest Meilisearch Docker version from Docker Hub" >&2
+            exit 1
+          fi
+          echo "latest_version=$LATEST_VERSION" >> "$GITHUB_OUTPUT"
+
+  update-local-meilisearch-docker-version:
+    runs-on: ubuntu-latest
+    needs:
+      - get-newest-meiliseach-docker-version
+      - get-current-local-meilisearch-docker-version
+
+    steps:
+      - *setup-python
+
+      - name: Print parsed versions
+        id: print-versions
+        run: |
+          LOCAL_VERSION="${{ needs.get-current-local-meilisearch-docker-version.outputs.local_version }}"
+          LATEST_VERSION="${{ needs.get-newest-meiliseach-docker-version.outputs.latest_version }}"
+
+          echo "Local version: $LOCAL_VERSION"
+          echo "Latest version: $LATEST_VERSION"
+
+      - name: Update local Meilisearch Docker version
+        id: update-version
+        run: |
+          LOCAL_VERSION="${{ needs.get-current-local-meilisearch-docker-version.outputs.local_version }}"
+          LATEST_VERSION="${{ needs.get-newest-meiliseach-docker-version.outputs.latest_version }}"
+
+          sed -i "s/FROM getmeili\/meilisearch:${LOCAL_VERSION}/FROM getmeili\/meilisearch:${LATEST_VERSION}/g" Dockerfile
+
+  create-meilisearch-version-sync-pr-if-needed:
+    runs-on: ubuntu-latest
+    needs:
+      - get-newest-meiliseach-docker-version
+
+    steps:
+      - name: Check for changes
+        id: check_changes
+        uses: alchemaxinc/composite-toolbox/check-changes@v1
+        with:
+          files: "Dockerfile"
+
+      - name: Create temporary GitHub App Token
+        id: app
+        if: steps.check_changes.outputs.has_changes == 'true'
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
+          private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Create Pull Request
+        id: open-pr
+        if: steps.check_changes.outputs.has_changes == 'true'
+        uses: alchemaxinc/composite-toolbox/create-pr@v1
+        with:
+          token: ${{ steps.app.outputs.token }}
+          base-branch: ${{ inputs.base-branch }}
+          branch-prefix: ${{ inputs.branch-prefix }}
+          files: "package.json package-lock.json"
+          commit-message: ${{ inputs.commit-message }}
+          pr-title: ${{ inputs.pr-title }}
+          pr-body: |
+            This PR updates the Meilisearch Docker version in the Dockerfile to the latest available version.
+
+            - Previous version: ${{ needs.get-current-local-meilisearch-docker-version.outputs.local_version }}
+            - New version: ${{ needs.get-newest-meiliseach-docker-version.outputs.latest_version }}
+
+      - name: Auto-merge Pull Request
+        if: inputs.auto-merge == 'true' && steps.open-pr.outcome == 'success'
+        uses: alchemaxinc/composite-toolbox/merge-pr@v1
+        with:
+          token: ${{ inputs.token }}
+          merge-method: "squash"
+          pull-request-number: ${{ steps.open-pr.outputs.pr_number }}
