@@ -5,12 +5,18 @@ on:
   schedule:
     - cron: "0 0 * * *" # Daily at midnight
 
+permissions:
+  contents: write
+  pull-requests: write
+
 env:
   PYTHON_VERSION: "3.14"
 
 jobs:
   get-current-local-meilisearch-docker-version:
     runs-on: ubuntu-latest
+    outputs:
+      local_version: ${{ steps.get-local-version.outputs.local_version }}
 
     steps:
       - &checkout-code
@@ -25,10 +31,17 @@ jobs:
             echo "Failed to extract Meilisearch image tag from Dockerfile." >&2
             exit 1
           fi
+
           echo "local_version=$LOCAL_VERSION" >> "$GITHUB_OUTPUT"
+
+          echo "::notice::Current local Meilisearch Docker version: $LOCAL_VERSION"
+          echo "## 🐳 Current Local Meilisearch Version" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** \`$LOCAL_VERSION\`" >> $GITHUB_STEP_SUMMARY
 
   get-newest-meiliseach-docker-version:
     runs-on: ubuntu-latest
+    outputs:
+      latest_version: ${{ steps.get-latest-version.outputs.latest_version }}
 
     steps:
       - *checkout-code
@@ -55,40 +68,42 @@ jobs:
             echo "Failed to extract latest Meilisearch Docker version from Docker Hub" >&2
             exit 1
           fi
+
           echo "latest_version=$LATEST_VERSION" >> "$GITHUB_OUTPUT"
 
-  update-local-meilisearch-docker-version:
+          echo "::notice::Latest Meilisearch Docker version available: $LATEST_VERSION"
+          echo "## 🚀 Latest Meilisearch Version" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** \`$LATEST_VERSION\`" >> $GITHUB_STEP_SUMMARY
+
+  update-and-sync-meilisearch-version:
     runs-on: ubuntu-latest
+    env:
+      LOCAL_VERSION: ${{ needs.get-current-local-meilisearch-docker-version.outputs.local_version }}
+      LATEST_VERSION: ${{ needs.get-newest-meiliseach-docker-version.outputs.latest_version }}
     needs:
       - get-newest-meiliseach-docker-version
       - get-current-local-meilisearch-docker-version
 
     steps:
+      - *checkout-code
       - *setup-python
 
-      - name: Print parsed versions
+      - name: Print and verify versions
         id: print-versions
-        run: |
-          LOCAL_VERSION="${{ needs.get-current-local-meilisearch-docker-version.outputs.local_version }}"
-          LATEST_VERSION="${{ needs.get-newest-meiliseach-docker-version.outputs.latest_version }}"
 
+        run: |
           echo "Local version: $LOCAL_VERSION"
           echo "Latest version: $LATEST_VERSION"
 
+          if [ -z "$LOCAL_VERSION" ] || [ -z "$LATEST_VERSION" ]; then
+            echo "Error: LOCAL_VERSION or LATEST_VERSION is empty" >&2
+            exit 1
+          fi
+
       - name: Update local Meilisearch Docker version
         id: update-version
-        run: |
-          LOCAL_VERSION="${{ needs.get-current-local-meilisearch-docker-version.outputs.local_version }}"
-          LATEST_VERSION="${{ needs.get-newest-meiliseach-docker-version.outputs.latest_version }}"
+        run: sed -i "s/FROM getmeili\/meilisearch:${LOCAL_VERSION}/FROM getmeili\/meilisearch:${LATEST_VERSION}/g" Dockerfile
 
-          sed -i "s/FROM getmeili\/meilisearch:${LOCAL_VERSION}/FROM getmeili\/meilisearch:${LATEST_VERSION}/g" Dockerfile
-
-  create-meilisearch-version-sync-pr-if-needed:
-    runs-on: ubuntu-latest
-    needs:
-      - update-local-meilisearch-docker-version
-
-    steps:
       - name: Check for changes
         id: check_changes
         uses: alchemaxinc/composite-toolbox/check-changes@v1
@@ -100,9 +115,9 @@ jobs:
         if: steps.check_changes.outputs.has_changes == 'true'
         uses: actions/create-github-app-token@v1
         with:
+          owner: ${{ github.repository_owner }}
           app-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
           private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
 
       - name: Create Pull Request
         id: open-pr
@@ -110,11 +125,11 @@ jobs:
         uses: alchemaxinc/composite-toolbox/create-pr@v1
         with:
           token: ${{ steps.app.outputs.token }}
-          base-branch: ${{ inputs.base-branch }}
-          branch-prefix: ${{ inputs.branch-prefix }}
-          files: "package.json package-lock.json"
-          commit-message: ${{ inputs.commit-message }}
-          pr-title: ${{ inputs.pr-title }}
+          base-branch: "main"
+          branch-prefix: "fix/auto/meilisearch-docker-version"
+          files: "Dockerfile"
+          commit-message: "fix: update Meilisearch Docker version to ${{ needs.get-newest-meiliseach-docker-version.outputs.latest_version }}"
+          pr-title: "fix: automatic Mielisearch Docker version upgrade"
           pr-body: |
             This PR updates the Meilisearch Docker version in the Dockerfile to the latest available version.
 
