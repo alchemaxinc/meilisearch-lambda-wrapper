@@ -29,6 +29,11 @@ jobs:
           private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
+      - name: Checkout and setup
+        uses: alchemaxinc/composite-toolbox/checkout-and-setup@v1
+        with:
+          token: ${{ steps.app.outputs.token }}
+
       - name: Version and release
         uses: alchemaxinc/composite-toolbox/semantic-release@v1
         with:

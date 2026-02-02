@@ -85,7 +85,6 @@ jobs:
       - get-current-local-meilisearch-docker-version
 
     steps:
-      - *checkout-code
       - *setup-python
 
       - name: Print and verify versions
@@ -100,6 +99,20 @@ jobs:
             exit 1
           fi
 
+      - name: Create temporary GitHub App Token
+        id: app
+        if: steps.check_changes.outputs.has_changes == 'true'
+        uses: actions/create-github-app-token@v1
+        with:
+          owner: ${{ github.repository_owner }}
+          app-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
+          private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}
+
+      - name: Checkout and setup
+        uses: alchemaxinc/composite-toolbox/checkout-and-setup@v1
+        with:
+          token: ${{ steps.app.outputs.token }}
+
       - name: Update local Meilisearch Docker version
         id: update-version
         run: sed -i "s/FROM getmeili\/meilisearch:${LOCAL_VERSION}/FROM getmeili\/meilisearch:${LATEST_VERSION}/g" Dockerfile
@@ -109,15 +122,6 @@ jobs:
         uses: alchemaxinc/composite-toolbox/check-changes@v1
         with:
           files: "Dockerfile"
-
-      - name: Create temporary GitHub App Token
-        id: app
-        if: steps.check_changes.outputs.has_changes == 'true'
-        uses: actions/create-github-app-token@v1
-        with:
-          owner: ${{ github.repository_owner }}
-          app-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
-          private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}
 
       - name: Create Pull Request
         id: open-pr
