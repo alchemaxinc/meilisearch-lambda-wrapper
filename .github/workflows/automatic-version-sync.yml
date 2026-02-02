@@ -143,6 +143,6 @@ jobs:
         if: steps.open-pr.outcome == 'success'
         uses: alchemaxinc/composite-toolbox/merge-pr@v1
         with:
-          token: ${{ inputs.token }}
+          token: ${{ steps.app.outputs.token }}
           merge-method: "merge"
           pull-request-number: ${{ steps.open-pr.outputs.pr_number }}
