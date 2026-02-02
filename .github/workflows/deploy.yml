@@ -18,5 +18,15 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Create temporary GitHub App Token
+        id: app
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
+          private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
       - name: Version and release
         uses: alchemaxinc/composite-toolbox/semantic-release@v1
+        with:
+          token: ${{ steps.app.outputs.token }}
