@@ -85,20 +85,6 @@ jobs:
       - get-current-local-meilisearch-docker-version
 
     steps:
-      - *setup-python
-
-      - name: Print and verify versions
-        id: print-versions
-
-        run: |
-          echo "Local version: $LOCAL_VERSION"
-          echo "Latest version: $LATEST_VERSION"
-
-          if [ -z "$LOCAL_VERSION" ] || [ -z "$LATEST_VERSION" ]; then
-            echo "Error: LOCAL_VERSION or LATEST_VERSION is empty" >&2
-            exit 1
-          fi
-
       - name: Create temporary GitHub App Token
         id: app
         if: steps.check_changes.outputs.has_changes == 'true'
@@ -112,6 +98,20 @@ jobs:
         uses: alchemaxinc/composite-toolbox/checkout-and-setup@v1
         with:
           token: ${{ steps.app.outputs.token }}
+
+      - *setup-python
+
+      - name: Print and verify versions
+        id: print-versions
+
+        run: |
+          echo "Local version: $LOCAL_VERSION"
+          echo "Latest version: $LATEST_VERSION"
+
+          if [ -z "$LOCAL_VERSION" ] || [ -z "$LATEST_VERSION" ]; then
+            echo "Error: LOCAL_VERSION or LATEST_VERSION is empty" >&2
+            exit 1
+          fi
 
       - name: Update local Meilisearch Docker version
         id: update-version

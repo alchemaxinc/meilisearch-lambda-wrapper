@@ -7,9 +7,6 @@ on:
     types:
       - completed
 
-permissions:
-  contents: write
-
 jobs:
   semantic-release:
     name: Semantic Versioning and Release
