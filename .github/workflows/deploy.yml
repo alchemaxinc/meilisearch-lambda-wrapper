@@ -66,5 +66,5 @@ jobs:
         uses: alchemaxinc/composite-toolbox/merge-pr@v1
         with:
           token: ${{ steps.app.outputs.token }}
-          merge-method: "squash"
+          merge-method: "merge"
           pull-request-number: ${{ steps.open-pr.outputs.pr_number }}
