@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "meilisearch-lambda-wrapper"
-version = "1.0.1"
+version = "1.1.0"
 description = "A Python HTTP proxy wrapper for MeiliSearch on AWS Lambda"
 readme = "README.md"
 requires-python = ">=3.9"
