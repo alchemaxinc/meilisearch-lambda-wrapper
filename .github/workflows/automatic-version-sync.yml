@@ -87,7 +87,6 @@ jobs:
     steps:
       - name: Create temporary GitHub App Token
         id: app
-        if: steps.check_changes.outputs.has_changes == 'true'
         uses: actions/create-github-app-token@v1
         with:
           owner: ${{ github.repository_owner }}
