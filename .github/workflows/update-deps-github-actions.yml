@@ -10,7 +10,7 @@ jobs:
     steps:
       - name: Create temporary GitHub App Token
         id: app
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2.2.1
         with:
           owner: ${{ github.repository_owner }}
           app-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
