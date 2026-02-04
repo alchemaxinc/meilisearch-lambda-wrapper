@@ -21,7 +21,7 @@ jobs:
     steps:
       - &checkout-code
         name: Checkout code (shallow)
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6.0.2
 
       - name: Get current local Meilisearch Docker version
         id: get-local-version
@@ -48,7 +48,7 @@ jobs:
 
       - &setup-python
         name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v6.2.0
         with:
           cache: "pip"
           python-version: "${{ env.PYTHON_VERSION }}"
@@ -78,8 +78,10 @@ jobs:
   update-and-sync-meilisearch-version:
     runs-on: ubuntu-latest
     env:
-      LOCAL_VERSION: ${{ needs.get-current-local-meilisearch-docker-version.outputs.local_version }}
-      LATEST_VERSION: ${{ needs.get-newest-meiliseach-docker-version.outputs.latest_version }}
+      LOCAL_VERSION: ${{ needs.get-current-local-meilisearch-docker-version.outputs.local_version
+        }}
+      LATEST_VERSION: ${{ needs.get-newest-meiliseach-docker-version.outputs.latest_version
+        }}
     needs:
       - get-newest-meiliseach-docker-version
       - get-current-local-meilisearch-docker-version
@@ -87,7 +89,7 @@ jobs:
     steps:
       - name: Create temporary GitHub App Token
         id: app
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2.2.1
         with:
           owner: ${{ github.repository_owner }}
           app-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
@@ -114,7 +116,8 @@ jobs:
 
       - name: Update local Meilisearch Docker version
         id: update-version
-        run: sed -i "s/FROM getmeili\/meilisearch:${LOCAL_VERSION}/FROM getmeili\/meilisearch:${LATEST_VERSION}/g" Dockerfile
+        run: sed -i "s/FROM getmeili\/meilisearch:${LOCAL_VERSION}/FROM getmeili\/meilisearch:${LATEST_VERSION}/g"
+          Dockerfile
 
       - name: Check for changes
         id: check_changes
@@ -131,7 +134,8 @@ jobs:
           base-branch: "main"
           branch-prefix: "fix/auto/meilisearch-docker-version"
           files: "Dockerfile"
-          commit-message: "fix: update Meilisearch Docker version to ${{ needs.get-newest-meiliseach-docker-version.outputs.latest_version }}"
+          commit-message: "fix: update Meilisearch Docker version to ${{ needs.get-newest-meiliseach-docker-version.outputs.latest_version
+            }}"
           pr-title: "fix: automatic Mielisearch Docker version upgrade"
           pr-body: |
             This PR updates the Meilisearch Docker version in the Dockerfile to the latest available version.
