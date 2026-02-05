@@ -23,7 +23,7 @@ jobs:
     steps:
       - name: Create temporary GitHub App Token
         id: app
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
           private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}

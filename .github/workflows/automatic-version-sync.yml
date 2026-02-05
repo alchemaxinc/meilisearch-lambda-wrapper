@@ -21,7 +21,7 @@ jobs:
     steps:
       - &checkout-code
         name: Checkout code (shallow)
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Get current local Meilisearch Docker version
         id: get-local-version
@@ -87,7 +87,7 @@ jobs:
     steps:
       - name: Create temporary GitHub App Token
         id: app
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2
         with:
           owner: ${{ github.repository_owner }}
           app-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
