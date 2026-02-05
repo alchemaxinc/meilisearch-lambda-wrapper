@@ -19,12 +19,12 @@ jobs:
     steps:
       - &checkout-code
         name: Checkout code (shallow)
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v5
 
       - &cache-commitlint
         name: Cache Commitlint
         id: cache-commitlint
-        uses: actions/cache@v5.0.3
+        uses: actions/cache@v4
         with:
           path: node_modules
           key: v4-commitlint-${{ env.COMMITLINT_CLI_VERSION }}
@@ -38,7 +38,7 @@ jobs:
     needs: install-commitlint
     steps:
       - name: Checkout code (full)
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -58,7 +58,7 @@ jobs:
       - &cache-prettier
         name: Cache Prettier
         id: cache-prettier
-        uses: actions/cache@v5.0.3
+        uses: actions/cache@v4
         with:
           path: node_modules
           key: v1-prettier-${{ env.PRETTIER_VERSION }}
@@ -82,7 +82,7 @@ jobs:
         run: echo "black==${{ env.BLACK_VERSION }}" > black-requirements.txt
 
       - name: Setup Python
-        uses: actions/setup-python@v6.2.0
+        uses: actions/setup-python@v6
         with:
           cache: "pip" # Natively handles caching ~/.cache/pip
           python-version: "${{ env.PYTHON_VERSION }}"
