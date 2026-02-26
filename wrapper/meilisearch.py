@@ -1,4 +1,3 @@
-import gzip
 import json
 import subprocess
 import threading
@@ -53,7 +52,7 @@ class MeiliSearchWrapper:
                             **line_json,
                         },
                     )
-                except json.JSONDecodeError as e:
+                except json.JSONDecodeError:
                     logger.info(
                         line,
                         extra={
@@ -61,7 +60,6 @@ class MeiliSearchWrapper:
                             "meilisearch-stream-type": stream_type,
                         },
                     )
-                continue
 
         except Exception as e:
             logger.error(f"Error reading {stream_type}: {str(e)}")
@@ -124,15 +122,7 @@ class MeiliSearchWrapper:
                         f"Error fetching task {task_uid}: {resp.status_code}"
                     )
 
-                # Handle potential gzip encoding in response
-                content_encoding = (
-                    resp.headers.get("Content-Encoding", "") or ""
-                ).lower()
-                if "gzip" in content_encoding:
-                    body_bytes = gzip.decompress(resp.content)
-                else:
-                    body_bytes = resp.content
-
+                body_bytes = resp.content
                 data = resp.json()
                 status = data.get("status")
                 logger.debug("Task poll", extra={"taskUid": task_uid, "status": status})

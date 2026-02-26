@@ -1,7 +1,7 @@
 # Terraform Infrastructure as Code
 
 This is an example Terraform project that sets up AWS infrastructure for running Meilisearch on Lambda with EFS storage.
-It includes som additional logic such as an SNS topic with metrics and alerting.
+It includes some additional logic such as an SNS topic with metrics and alerting.
 
 It assumes S3 for the state backend and has a `.tfvars` file attached for example configuration.
 

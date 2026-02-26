@@ -17,7 +17,7 @@ LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 LOG_LEVELS = {
     "DEBUG": logging.DEBUG,
     "INFO": logging.INFO,
-    "WARN": logging.WARN,
+    "WARN": logging.WARNING,
     "WARNING": logging.WARNING,
     "ERROR": logging.ERROR,
 }
@@ -25,5 +25,3 @@ LOG_LEVELS = {
 # Preserve content-encoding so clients can decode payloads properly.
 HEADERS_TO_SKIP = ("transfer-encoding", "content-length")
 
-# Meilisearch task states
-TASK_TERMINAL_STATES = ("succeeded", "failed", "canceled")
