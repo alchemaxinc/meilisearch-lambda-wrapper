@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 import requests
 
@@ -15,8 +15,8 @@ def fetch_versioned_tag_names(
     session: Optional[requests.Session] = None,
     url: str = TAGS_URL,
     params: Optional[dict] = None,
-) -> List[str]:
-    """Return tag names from Docker Hub for the Meilisearch repository."""
+) -> str:
+    """Return the latest versioned tag name from Docker Hub for the Meilisearch repository."""
     active_params = params or DEFAULT_PARAMS
     client = session or requests
 

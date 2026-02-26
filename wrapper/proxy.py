@@ -96,12 +96,7 @@ class InterceptingProxy(BaseHTTPRequestHandler):
 
         # Forward headers from upstream, skipping certain ones
         for k, v in resp.headers.items():
-            lk = k.lower()
-
-            if lk in config.HEADERS_TO_SKIP:
-                continue
-
-            if lk == "content-length":
+            if k.lower() in config.HEADERS_TO_SKIP:
                 continue
 
             self.send_header(k, v)
@@ -115,8 +110,8 @@ class InterceptingProxy(BaseHTTPRequestHandler):
             extra={
                 "headers": {
                     k: v
-                    for k, v in self.headers.items()
-                    if not k.lower() in config.HEADERS_TO_SKIP
+                    for k, v in resp.headers.items()
+                    if k.lower() not in config.HEADERS_TO_SKIP
                 },
                 "method": self.command,
                 "path": self.path,
