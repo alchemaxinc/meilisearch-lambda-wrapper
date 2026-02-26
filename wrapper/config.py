@@ -24,4 +24,3 @@ LOG_LEVELS = {
 
 # Preserve content-encoding so clients can decode payloads properly.
 HEADERS_TO_SKIP = ("transfer-encoding", "content-length")
-
