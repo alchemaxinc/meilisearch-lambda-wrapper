@@ -4,17 +4,17 @@ Wrapping the asynchronous Meilisearch API to run on AWS Lambda with EFS storage.
 
 ```mermaid
 flowchart LR
-    Request(("Client\nRequest")) -->|HTTP| Gateway["AWS API\nGateway"]
+    Request(("Client<br/>Request")) -->|HTTP| Gateway["AWS API<br/>Gateway"]
     Gateway --> Wrapper
 
     subgraph Lambda["AWS Lambda"]
         subgraph Docker["Docker Container"]
-            Wrapper["meilisearch-lambda-wrapper"] -->|"1: Forward\nrequest"| Meili["getmeili/meilisearch"]
-            Meili -.->|"2: Poll until\ncomplete (or\nLambda timeout)"| Wrapper
+            Wrapper["meilisearch-lambda-wrapper"] -->|"1: Forward<br/>request"| Meili["getmeili/meilisearch"]
+            Meili -.->|"2: Poll until<br/>complete (or<br/>Lambda timeout)"| Wrapper
         end
     end
 
-    Meili <-->|"Persistent\nstorage"| EFS[("EFS\n/data\n/dump\n/snapshots")]
+    Meili <-->|"Persistent<br/>storage"| EFS[("EFS<br/>/data<br/>/dump<br/>/snapshots")]
 ```
 
 ## The Problem
