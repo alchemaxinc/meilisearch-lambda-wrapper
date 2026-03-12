@@ -1,4 +1,4 @@
-FROM getmeili/meilisearch:v1.38.0
+FROM getmeili/meilisearch:v1.38.2
 
 RUN apk add --no-cache python3 py-pip
 
