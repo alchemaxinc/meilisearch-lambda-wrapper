@@ -28,12 +28,12 @@ clean: ## Clean up built files
 
 .PHONY: lint
 lint: ## Run linter
-	black --check .
+	FIXME: RUST LINT CHECK
 	npx prettier --check .
 
 .PHONY: format
 format: ## Format files
-	black .
+	FIXME: RUST LINT WRITE
 	npx prettier --write .
 
 .PHONY: test-integration
