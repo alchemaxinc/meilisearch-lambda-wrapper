@@ -9,9 +9,6 @@ permissions:
   contents: write
   pull-requests: write
 
-env:
-  PYTHON_VERSION: "3.14"
-
 jobs:
   get-current-local-meilisearch-docker-version:
     runs-on: ubuntu-latest
@@ -46,24 +43,29 @@ jobs:
     steps:
       - *checkout-code
 
-      - &setup-python
-        name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          cache: "pip"
-          python-version: "${{ env.PYTHON_VERSION }}"
-          cache-dependency-path: infrastructure/sync_versions/requirements.txt
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Install dependencies
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            infrastructure/sync_versions/target
+          key: v1-cargo-sync-versions-${{ hashFiles('infrastructure/sync_versions/Cargo.lock') }}
+          restore-keys: v1-cargo-sync-versions-
+
+      - name: Build sync_versions
         run: |
-          python -m pip install --upgrade pip
-          pip install requests
+          cargo build \
+            --manifest-path infrastructure/sync_versions/Cargo.toml \
+            --release
 
       - name: Get latest version of Meilisearch Docker image
         id: get-latest-version
-        working-directory: infrastructure/sync_versions
         run: |
-          LATEST_VERSION=$(python cli.py get-latest-meilisearch-version)
+          LATEST_VERSION=$(./infrastructure/sync_versions/target/release/sync_versions get-latest-meilisearch-version)
           if [ -z "$LATEST_VERSION" ]; then
             echo "Failed to extract latest Meilisearch Docker version from Docker Hub" >&2
             exit 1
@@ -98,11 +100,8 @@ jobs:
         with:
           token: ${{ steps.app.outputs.token }}
 
-      - *setup-python
-
       - name: Print and verify versions
         id: print-versions
-
         run: |
           echo "Local version: $LOCAL_VERSION"
           echo "Latest version: $LATEST_VERSION"
