@@ -17,7 +17,7 @@ flowchart LR
     Meili <-->|"Persistent<br/>storage"| EFS[("EFS<br/>/data<br/>/dump<br/>/snapshots")]
 ```
 
-## The Problem
+## The problem
 
 Meilisearch is mainly [asynchronous](https://www.meilisearch.com/docs/learn/async/asynchronous_operations), and
 is [designed](https://www.meilisearch.com/docs/learn/self_hosted/getting_started_with_self_hosted_meilisearch) to run on
