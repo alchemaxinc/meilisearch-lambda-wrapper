@@ -7,6 +7,10 @@ SERVICE_NAME=meilisearch-lambda-wrapper
 DOCKER_IMAGE_NAME=$(SERVICE_NAME)-api
 DOCKER_IMAGE_TAG?=abc123def
 
+# Rust crate manifest paths
+SYNC_VERSIONS_MANIFEST=infrastructure/sync_versions/Cargo.toml
+WRAPPER_MANIFEST=wrapper/Cargo.toml
+
 # Functions for reusable docker build commands
 define docker_build
 	docker buildx build \
@@ -28,13 +32,53 @@ clean: ## Clean up built files
 
 .PHONY: lint
 lint: ## Run linter
-	FIXME: RUST LINT CHECK
+	cargo clippy \
+		--manifest-path $(SYNC_VERSIONS_MANIFEST) \
+		--all-targets \
+		-- -D warnings
+	cargo clippy \
+		--manifest-path $(WRAPPER_MANIFEST) \
+		--all-targets \
+		-- -D warnings
+	cargo fmt \
+		--manifest-path $(SYNC_VERSIONS_MANIFEST) \
+		-- --check
+	cargo fmt \
+		--manifest-path $(WRAPPER_MANIFEST) \
+		-- --check
 	npx prettier --check .
 
 .PHONY: format
 format: ## Format files
-	FIXME: RUST LINT WRITE
+	cargo clippy \
+		--manifest-path $(SYNC_VERSIONS_MANIFEST) \
+		--all-targets \
+		--fix --allow-dirty
+	cargo clippy \
+		--manifest-path $(WRAPPER_MANIFEST) \
+		--all-targets \
+		--fix --allow-dirty
+	cargo fmt \
+		--manifest-path $(SYNC_VERSIONS_MANIFEST)
+	cargo fmt \
+		--manifest-path $(WRAPPER_MANIFEST)
 	npx prettier --write .
+
+.PHONY: build
+build: ## Build all Rust crates
+	cargo build \
+		--manifest-path $(SYNC_VERSIONS_MANIFEST) \
+		--release
+	cargo build \
+		--manifest-path $(WRAPPER_MANIFEST) \
+		--release
+
+.PHONY: test
+test: ## Run unit tests
+	cargo test \
+		--manifest-path $(SYNC_VERSIONS_MANIFEST)
+	cargo test \
+		--manifest-path $(WRAPPER_MANIFEST)
 
 .PHONY: test-integration
 test-integration: ## Run integration tests

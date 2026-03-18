@@ -43,7 +43,7 @@ jobs:
         id: check_changes
         uses: alchemaxinc/composite-toolbox/check-changes@v1
         with:
-          files: "pyproject.toml"
+          files: "wrapper/Cargo.toml"
 
       - name: Create Pull Request for version bump
         id: open-pr
@@ -53,11 +53,11 @@ jobs:
           token: ${{ steps.app.outputs.token }}
           base-branch: "main"
           branch-prefix: "chore/auto/semantic-release"
-          files: "pyproject.toml"
-          commit-message: "chore(semantic-release): bump version in pyproject.toml"
+          files: "wrapper/Cargo.toml"
+          commit-message: "chore(semantic-release): bump version in wrapper/Cargo.toml"
           pr-title: "chore: semantic release version bump"
           pr-body: |
-            This PR updates the version in pyproject.toml after semantic-release created a new release.
+            This PR updates the version in wrapper/Cargo.toml after semantic-release created a new release.
 
             This is an automated PR created by the semantic release workflow.
 
