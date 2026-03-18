@@ -8,8 +8,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: "3.14"
-  BLACK_VERSION: "24.10.0"
+  RUST_TOOLCHAIN: "stable"
   PRETTIER_VERSION: "3.3.3"
   COMMITLINT_CLI_VERSION: "20.2.0"
 
@@ -73,26 +72,39 @@ jobs:
     steps:
       - *checkout-code
 
-      - *cache-prettier
-      - name: Run Prettier check
-        run: ./node_modules/.bin/prettier --check .
-
-      # Create a temporary file so setup-python can hash it for the cache key
-      - name: Create Black lockfile
-        run: echo "black==${{ env.BLACK_VERSION }}" > black-requirements.txt
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
+      - &install-rust
+        name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          cache: "pip" # Natively handles caching ~/.cache/pip
-          python-version: "${{ env.PYTHON_VERSION }}"
-          cache-dependency-path: black-requirements.txt
+          components: clippy, rustfmt
 
-      - name: Install Black
-        run: pip install -r black-requirements.txt
+      - &cache-cargo
+        name: Cache Cargo dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            infrastructure/sync_versions/target
+            wrapper/target
+          key: v1-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: v1-cargo-
 
-      - name: Run Black check
-        run: black --check .
+      - *cache-prettier
+
+      - name: Run linters
+        run: make lint
+
+  run-tests:
+    runs-on: ubuntu-latest
+    needs: run-lint
+    steps:
+      - *checkout-code
+      - *install-rust
+      - *cache-cargo
+
+      - name: Run unit tests
+        run: make test
 
   test-integration:
     runs-on: ubuntu-latest

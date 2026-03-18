@@ -1,0 +1,11 @@
+[package]
+name = "sync_versions"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lints.clippy]
+implicit_return = "deny"
+needless_return = "allow"
+
+[dependencies]

@@ -1,0 +1,10 @@
+[package]
+name = "wrapper"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lints.clippy]
+implicit_return = "deny"
+
+[dependencies]
