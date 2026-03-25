@@ -1,9 +1,8 @@
 mod config;
-mod http_server;
+mod proxy;
 
-use tracing::{debug, error, info};
-
-fn main() {
+#[tokio::main]
+async fn main() {
     tracing_subscriber::fmt()
         // Get log level from RUST_LOG or default to "INFO"
         .with_env_filter(
@@ -15,8 +14,14 @@ fn main() {
         .flatten_event(true)
         .init();
 
-    info!(
+    let addr = format!("0.0.0.0:{}", config::PROXY_LISTEN_PORT);
+    let app = proxy::Proxy::new().router();
+
+    tracing::info!(
         port = config::PROXY_LISTEN_PORT,
         "starting MeiliSearch wrapper proxy"
     );
+
+    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+    axum::serve(listener, app).await.unwrap();
 }
