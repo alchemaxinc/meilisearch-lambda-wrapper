@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 // Server configuration
 pub const MEILISEARCH_PORT: u16 = 7700;
 pub const PROXY_LISTEN_PORT: u16 = 8080;
