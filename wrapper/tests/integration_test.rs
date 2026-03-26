@@ -70,9 +70,6 @@ mod polling_wrapper {
 
     use super::common;
 
-    const MAX_POLL_ATTEMPTS: u32 = 30;
-    const POLL_INTERVAL_MS: u64 = 500;
-
     #[test]
     #[ignore = "polling wrapper not yet implemented"]
     fn seed_and_verify_documents() {
@@ -95,10 +92,10 @@ mod polling_wrapper {
         );
 
         // Poll until the indexing task completes
-        let poll_interval = time::Duration::from_millis(POLL_INTERVAL_MS);
+        let poll_interval = time::Duration::from_millis(common::POLL_INTERVAL_MS);
 
         let task = 'poll: {
-            for attempt in 1..=MAX_POLL_ATTEMPTS {
+            for attempt in 1..=common::MAX_POLL_ATTEMPTS {
                 let response = ctx
                     .get("/tasks/0")
                     .send()
@@ -106,7 +103,8 @@ mod polling_wrapper {
 
                 if response.status() != 200 {
                     eprintln!(
-                        "Attempt {attempt}/{MAX_POLL_ATTEMPTS}: Task endpoint returned status {}, waiting...",
+                        "Attempt {attempt}/{}: Task endpoint returned status {}, waiting...",
+                        common::MAX_POLL_ATTEMPTS,
                         response.status()
                     );
                     thread::sleep(poll_interval);
@@ -121,13 +119,17 @@ mod polling_wrapper {
                 }
 
                 eprintln!(
-                    "Attempt {attempt}/{MAX_POLL_ATTEMPTS}: Task status is '{}', waiting...",
+                    "Attempt {attempt}/{}: Task status is '{}', waiting...",
+                    common::MAX_POLL_ATTEMPTS,
                     task.status
                 );
                 thread::sleep(poll_interval);
             }
 
-            panic!("Task did not complete within {MAX_POLL_ATTEMPTS} attempts");
+            panic!(
+                "Task did not complete within {} attempts",
+                common::MAX_POLL_ATTEMPTS
+            );
         };
 
         assert_eq!(task.details.received_documents, 31944);

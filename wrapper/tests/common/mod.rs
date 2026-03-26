@@ -2,6 +2,10 @@ use reqwest::{blocking, header};
 use serde::Deserialize;
 use std::env;
 
+// Test polling configuration
+pub const POLL_INTERVAL_MS: u64 = 100;
+pub const MAX_POLL_ATTEMPTS: u64 = 300;
+
 #[derive(Debug, Deserialize)]
 pub struct TaskDetails {
     #[serde(rename = "receivedDocuments")]
