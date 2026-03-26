@@ -82,8 +82,8 @@ test: ## Run unit tests
 
 .PHONY: test-integration
 test-integration: ## Run integration tests
-	docker compose -f wrapper/test/docker-compose.yml build
-	docker compose -f wrapper/test/docker-compose.yml up --abort-on-container-exit --exit-code-from integration-tests
+	docker compose -f wrapper/tests/docker-compose.yml build
+	docker compose -f wrapper/tests/docker-compose.yml up --abort-on-container-exit --exit-code-from integration-tests
 
 .PHONY: build-docker-api-amd64
 build-docker-api-amd64: ## Build Docker image for API (amd64)
