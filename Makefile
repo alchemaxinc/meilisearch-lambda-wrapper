@@ -73,8 +73,8 @@ build: ## Build all Rust crates
 		--manifest-path $(WRAPPER_MANIFEST) \
 		--release
 
-.PHONY: test
-test: ## Run unit tests
+.PHONY: test-unit
+test-unit: ## Run unit tests
 	cargo test \
 		--manifest-path $(SYNC_VERSIONS_MANIFEST)
 	cargo test \

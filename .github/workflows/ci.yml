@@ -135,11 +135,11 @@ jobs:
           restore-keys: v1-cargo-${{ env.RUST_TOOLCHAIN }}-
 
       - name: Run unit tests
-        run: make test
+        run: make test-unit
 
   test-integration:
     runs-on: ubuntu-latest
-    needs: [lint-rust, lint-prettier, run-commitlint]
+    needs: [ lint-rust, lint-prettier, run-commitlint ]
     steps:
       - *checkout-code
 
