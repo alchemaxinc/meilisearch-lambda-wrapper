@@ -122,8 +122,7 @@ jobs:
       - *checkout-code
       - *install-rust
 
-      - &cache-cargo
-        name: Cache Cargo dependencies
+      - name: Cache Cargo dependencies
         uses: actions/cache@v5
         with:
           path: |
@@ -139,7 +138,7 @@ jobs:
 
   test-integration:
     runs-on: ubuntu-latest
-    needs: [lint-rust, lint-prettier, run-commitlint]
+    needs: [ lint-rust, lint-prettier, run-commitlint ]
     steps:
       - *checkout-code
 
