@@ -5,6 +5,9 @@ on:
   schedule:
     - cron: "0 0 * * 0" # Run every Sunday at midnight
 
+env:
+  RUST_TOOLCHAIN: "1.94.0"
+
 permissions:
   contents: write
   pull-requests: write
@@ -44,7 +47,9 @@ jobs:
       - *checkout-code
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
 
       - name: Cache Cargo dependencies
         uses: actions/cache@v5
@@ -53,8 +58,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             infrastructure/sync_versions/target
-          key: v1-cargo-sync-versions-${{ hashFiles('infrastructure/sync_versions/Cargo.lock') }}
-          restore-keys: v1-cargo-sync-versions-
+          key: v1-cargo-sync-versions-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('infrastructure/sync_versions/Cargo.lock') }}
+          restore-keys: v1-cargo-sync-versions-${{ env.RUST_TOOLCHAIN }}-
 
       - name: Build sync_versions
         run: |
