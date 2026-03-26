@@ -7,7 +7,6 @@ publish = false
 [lints.clippy]
 implicit_return = "deny"
 needless_return = "allow"
-absolute_paths = "deny"
 
 [dependencies]
 env_logger = "0.11.9"

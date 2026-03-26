@@ -1,138 +1,178 @@
+#![cfg(feature = "integration")]
 mod common;
 
-use common::{IndexListResponse, TaskListResponse, TaskResponse, TestContext};
-use std::{thread, time};
+// The Proxy Forwarding integration test verifies that we've correctly implemented
+// simple forwarding of the /keys and /index endpoint. If they work, we assume it all works.
+// The more complex POST endpoint will then be handled separately as a part of the wrapping
+// mechanism tests.
+mod proxy_forwarding {
+    use super::common;
 
-const MAX_POLL_ATTEMPTS: u32 = 30;
-const POLL_INTERVAL_MS: u64 = 500;
+    #[test]
+    fn get_keys() {
+        let ctx = common::TestContext::new();
 
-fn step_1_seed_indexes(ctx: &TestContext) {
-    let csv_data = include_bytes!("fixtures/movies.csv");
-
-    let response = ctx
-        .post("/indexes/movies/documents?primaryKey=id")
-        .header("Content-Type", "text/csv")
-        .body(csv_data.as_slice())
-        .send()
-        .expect("Failed to send seed request");
-
-    assert_eq!(
-        response.status().as_u16(),
-        200,
-        "Seed request failed with status {}",
-        response.status()
-    );
-}
-
-fn step_2_poll_task_by_id(ctx: &TestContext) {
-    let poll_interval = time::Duration::from_millis(POLL_INTERVAL_MS);
-
-    for attempt in 1..=MAX_POLL_ATTEMPTS {
         let response = ctx
-            .get("/tasks/0")
+            .get("/keys")
             .send()
-            .expect("Failed to send task poll request");
+            .expect("Failed to send get keys request");
 
-        if response.status() != 200 {
-            eprintln!(
-                "Attempt {attempt}/{MAX_POLL_ATTEMPTS}: Task endpoint returned status {}, waiting...",
-                response.status()
-            );
-            thread::sleep(poll_interval);
-            continue;
-        }
-
-        let task: TaskResponse = response.json().expect("Failed to parse task response JSON");
-
-        if task.status != "succeeded" && task.status != "failed" {
-            eprintln!(
-                "Attempt {attempt}/{MAX_POLL_ATTEMPTS}: Task status is '{}', waiting...",
-                task.status
-            );
-            thread::sleep(poll_interval);
-            continue;
-        }
-
-        let details = task.details.expect("Task response missing 'details' field");
         assert_eq!(
-            details.received_documents,
-            Some(31944),
-            "Unexpected receivedDocuments count"
+            response.status().as_u16(),
+            200,
+            "Get keys failed with status {}",
+            response.status()
         );
-        assert_eq!(
-            details.indexed_documents,
-            Some(31944),
-            "Unexpected indexedDocuments count"
+
+        let data: common::KeyListResponse =
+            response.json().expect("Failed to parse keys response JSON");
+
+        assert!(
+            !data.results.is_empty(),
+            "Expected at least one key in results"
         );
-        return;
     }
 
-    panic!("Task did not complete within {MAX_POLL_ATTEMPTS} attempts");
+    #[test]
+    fn get_indexes_empty() {
+        let ctx = common::TestContext::new();
+
+        let response = ctx
+            .get("/indexes")
+            .send()
+            .expect("Failed to send get indexes request");
+
+        assert_eq!(
+            response.status().as_u16(),
+            200,
+            "Get indexes failed with status {}",
+            response.status()
+        );
+
+        let data: common::IndexListResponse = response
+            .json()
+            .expect("Failed to parse indexes response JSON");
+
+        assert_eq!(
+            data.results.len(),
+            0,
+            "Expected no indexes on clean instance"
+        );
+        assert_eq!(data.offset, 0);
+        assert_eq!(data.limit, 20);
+        assert_eq!(data.total, 0);
+    }
 }
 
-fn step_3_get_indexes(ctx: &TestContext) {
-    let response = ctx
-        .get("/indexes")
-        .send()
-        .expect("Failed to send get indexes request");
+// Polling Wrapper tests if the POST endpoint is correctly wrapped with a POST/GET polling mechanism.
+mod polling_wrapper {
+    use std::{thread, time};
 
-    assert_eq!(
-        response.status().as_u16(),
-        200,
-        "Get indexes failed with status {}",
-        response.status()
-    );
+    use super::common;
 
-    let data: IndexListResponse = response
-        .json()
-        .expect("Failed to parse indexes response JSON");
+    #[test]
+    #[ignore = "polling wrapper not yet implemented"]
+    fn seed_and_verify_documents() {
+        let ctx = common::TestContext::new();
 
-    assert_eq!(data.total, 1);
-    assert_eq!(data.offset, 0);
-    assert_eq!(data.limit, 20);
-    assert_eq!(data.results.len(), 1);
-    assert_eq!(data.results[0].uid, "movies");
-    assert_eq!(data.results[0].primary_key, Some("id".to_string()));
-}
+        let csv_data = include_bytes!("fixtures/movies.csv");
 
-fn step_4_get_all_tasks(ctx: &TestContext) {
-    let response = ctx
-        .get("/tasks")
-        .send()
-        .expect("Failed to send get tasks request");
+        let response = ctx
+            .post("/indexes/movies/documents?primaryKey=id")
+            .header("Content-Type", "text/csv")
+            .body(csv_data.as_slice())
+            .send()
+            .expect("Failed to send seed request");
 
-    assert_eq!(
-        response.status().as_u16(),
-        200,
-        "Get tasks failed with status {}",
-        response.status()
-    );
+        assert_eq!(
+            response.status(),
+            200,
+            "Seed request failed with status {}",
+            response.status()
+        );
 
-    let data: TaskListResponse = response
-        .json()
-        .expect("Failed to parse tasks response JSON");
+        // Poll until the indexing task completes
+        let poll_interval = time::Duration::from_millis(common::POLL_INTERVAL_MS);
 
-    assert!(!data.results.is_empty(), "Expected at least one task");
+        let task = 'poll: {
+            for attempt in 1..=common::MAX_POLL_ATTEMPTS {
+                let response = ctx
+                    .get("/tasks/0")
+                    .send()
+                    .expect("Failed to send task poll request");
 
-    let task = &data.results[0];
-    assert_eq!(task.index_uid, Some("movies".to_string()));
-    assert_eq!(task.status, "succeeded");
-    assert_eq!(task.task_type, "documentAdditionOrUpdate");
-    assert_eq!(task.canceled_by, None);
-    assert_eq!(task.error, None);
+                if response.status() != 200 {
+                    eprintln!(
+                        "Attempt {attempt}/{}: Task endpoint returned status {}, waiting...",
+                        common::MAX_POLL_ATTEMPTS,
+                        response.status()
+                    );
+                    thread::sleep(poll_interval);
+                    continue;
+                }
 
-    let details = task.details.as_ref().expect("Task missing 'details' field");
-    assert_eq!(details.received_documents, Some(31944));
-    assert_eq!(details.indexed_documents, Some(31944));
-}
+                let task: common::TaskResponse =
+                    response.json().expect("Failed to parse task response JSON");
 
-#[test]
-#[ignore]
-fn test_meilisearch_integration() {
-    let ctx = TestContext::new();
+                if task.status == "succeeded" || task.status == "failed" {
+                    break 'poll task;
+                }
 
-    step_1_seed_indexes(&ctx);
-    step_2_poll_task_by_id(&ctx);
-    step_3_get_indexes(&ctx);
-    step_4_get_all_tasks(&ctx);
+                eprintln!(
+                    "Attempt {attempt}/{}: Task status is '{}', waiting...",
+                    common::MAX_POLL_ATTEMPTS,
+                    task.status
+                );
+                thread::sleep(poll_interval);
+            }
+
+            panic!(
+                "Task did not complete within {} attempts",
+                common::MAX_POLL_ATTEMPTS
+            );
+        };
+
+        assert_eq!(task.details.received_documents, 31944);
+        assert_eq!(task.details.indexed_documents, 31944);
+
+        // Verify the index was created
+        let response = ctx
+            .get("/indexes")
+            .send()
+            .expect("Failed to send get indexes request");
+
+        assert_eq!(response.status().as_u16(), 200);
+
+        let data: common::IndexListResponse = response
+            .json()
+            .expect("Failed to parse indexes response JSON");
+
+        assert_eq!(data.total, 1);
+        assert_eq!(data.results.len(), 1);
+        assert_eq!(data.results[0].uid, "movies");
+        assert_eq!(data.results[0].primary_key, "id");
+
+        // Verify task list
+        let response = ctx
+            .get("/tasks")
+            .send()
+            .expect("Failed to send get tasks request");
+
+        assert_eq!(response.status().as_u16(), 200);
+
+        let data: common::TaskListResponse = response
+            .json()
+            .expect("Failed to parse tasks response JSON");
+
+        assert!(!data.results.is_empty(), "Expected at least one task");
+
+        let task = &data.results[0];
+        assert_eq!(task.index_uid, "movies");
+        assert_eq!(task.status, "succeeded");
+        assert_eq!(task.task_type, "documentAdditionOrUpdate");
+        assert!(task.canceled_by.is_null(), "Expected canceledBy to be null");
+        assert!(task.error.is_null(), "Expected error to be null");
+        assert_eq!(task.details.received_documents, 31944);
+        assert_eq!(task.details.indexed_documents, 31944);
+    }
 }
