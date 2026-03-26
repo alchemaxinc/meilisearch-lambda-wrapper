@@ -1,3 +1,5 @@
+use std::env;
+
 mod config;
 mod meilisearch;
 mod proxy;

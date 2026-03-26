@@ -52,7 +52,6 @@ pub struct TaskListResponse {
 #[derive(Debug, Deserialize)]
 pub struct KeyListResponse {
     pub results: Vec<serde_json::Value>,
-    pub total: u64,
 }
 
 pub struct TestContext {
@@ -61,10 +60,10 @@ pub struct TestContext {
     headers: header::HeaderMap,
 }
 
+const MEILISEARCH_HOST: &str = "http://localhost:8080";
+
 impl TestContext {
     pub fn new() -> Self {
-        let host = env::var("MEILI_HOST").expect("MEILI_HOST environment variable is not set");
-        let port = env::var("MEILI_PORT").expect("MEILI_PORT environment variable is not set");
         let master_key =
             env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY environment variable is not set");
 
@@ -76,7 +75,7 @@ impl TestContext {
 
         return Self {
             client: blocking::Client::new(),
-            base_url: format!("http://{host}:{port}"),
+            base_url: MEILISEARCH_HOST.to_string(),
             headers,
         };
     }
