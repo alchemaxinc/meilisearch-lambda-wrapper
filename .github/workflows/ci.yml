@@ -8,7 +8,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RUST_TOOLCHAIN: "stable"
+  RUST_TOOLCHAIN: "1.94.0"
   PRETTIER_VERSION: "3.3.3"
   COMMITLINT_CLI_VERSION: "20.2.0"
 
@@ -66,20 +66,63 @@ jobs:
         if: steps.cache-prettier.outputs.cache-hit != 'true'
         run: npm i -D prettier@${{ env.PRETTIER_VERSION }}
 
-  run-lint:
+  lint-rust:
     runs-on: ubuntu-latest
-    needs: install-prettier
+    strategy:
+      matrix:
+        include:
+          - name: wrapper
+            manifest: wrapper/Cargo.toml
+            target: wrapper/target
+            lockfile: wrapper/Cargo.lock
+          - name: sync-versions
+            manifest: infrastructure/sync_versions/Cargo.toml
+            target: infrastructure/sync_versions/target
+            lockfile: infrastructure/sync_versions/Cargo.lock
     steps:
       - *checkout-code
 
       - &install-rust
         name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: clippy, rustfmt
 
-      - &cache-cargo
-        name: Cache Cargo dependencies
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ matrix.target }}
+          key: v1-cargo-${{ matrix.name }}-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles(matrix.lockfile) }}
+          restore-keys: v1-cargo-${{ matrix.name }}-${{ env.RUST_TOOLCHAIN }}-
+
+      - name: Run clippy
+        run: cargo clippy --manifest-path ${{ matrix.manifest }} --all-targets -- -D warnings
+
+      - name: Check formatting
+        run: cargo fmt --manifest-path ${{ matrix.manifest }} -- --check
+
+  lint-prettier:
+    runs-on: ubuntu-latest
+    needs: install-prettier
+    steps:
+      - *checkout-code
+      - *cache-prettier
+
+      - name: Run Prettier
+        run: npx prettier --check .
+
+  run-tests:
+    runs-on: ubuntu-latest
+    needs: lint-rust
+    steps:
+      - *checkout-code
+      - *install-rust
+
+      - name: Cache Cargo dependencies
         uses: actions/cache@v5
         with:
           path: |
@@ -87,28 +130,15 @@ jobs:
             ~/.cargo/git
             infrastructure/sync_versions/target
             wrapper/target
-          key: v1-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: v1-cargo-
-
-      - *cache-prettier
-
-      - name: Run linters
-        run: make lint
-
-  run-tests:
-    runs-on: ubuntu-latest
-    needs: run-lint
-    steps:
-      - *checkout-code
-      - *install-rust
-      - *cache-cargo
+          key: v1-cargo-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: v1-cargo-${{ env.RUST_TOOLCHAIN }}-
 
       - name: Run unit tests
         run: make test
 
   test-integration:
     runs-on: ubuntu-latest
-    needs: [run-lint, run-commitlint]
+    needs: [lint-rust, lint-prettier, run-commitlint]
     steps:
       - *checkout-code
 
