@@ -18,7 +18,7 @@ mod proxy_forwarding {
             .expect("Failed to send get keys request");
 
         assert_eq!(
-            response.status().as_u16(),
+            response.status(),
             200,
             "Get keys failed with status {}",
             response.status()
@@ -43,7 +43,7 @@ mod proxy_forwarding {
             .expect("Failed to send get indexes request");
 
         assert_eq!(
-            response.status().as_u16(),
+            response.status(),
             200,
             "Get indexes failed with status {}",
             response.status()
@@ -71,10 +71,8 @@ mod polling_wrapper {
     use super::common;
 
     #[test]
-    #[ignore = "polling wrapper not yet implemented"]
     fn seed_and_verify_documents() {
         let ctx = common::TestContext::new();
-
         let csv_data = include_bytes!("fixtures/movies.csv");
 
         let response = ctx
@@ -141,7 +139,7 @@ mod polling_wrapper {
             .send()
             .expect("Failed to send get indexes request");
 
-        assert_eq!(response.status().as_u16(), 200);
+        assert_eq!(response.status(), 200);
 
         let data: common::IndexListResponse = response
             .json()
@@ -158,7 +156,7 @@ mod polling_wrapper {
             .send()
             .expect("Failed to send get tasks request");
 
-        assert_eq!(response.status().as_u16(), 200);
+        assert_eq!(response.status(), 200);
 
         let data: common::TaskListResponse = response
             .json()

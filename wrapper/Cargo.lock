@@ -1997,6 +1997,7 @@ name = "wrapper"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "bytes",
  "reqwest",
  "serde",
  "serde_json",
