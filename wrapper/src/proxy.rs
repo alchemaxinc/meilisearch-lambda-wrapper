@@ -2,13 +2,13 @@ use crate::config;
 
 #[derive(Clone)]
 pub struct Proxy {
-    client: reqwest::Client,
+    client: reqwest::blocking::Client,
 }
 
 impl Proxy {
     pub fn new() -> Self {
         return Self {
-            client: reqwest::Client::new(),
+            client: reqwest::blocking::Client::new(),
         };
     }
 
@@ -32,8 +32,8 @@ impl Proxy {
         let url = format!("{}{}{}", config::MEILISEARCH_HOST, path, query);
 
         tracing::info!(method = %method, url = %url, "proxying request");
-
         let headers = request.headers().clone();
+        // TODO: Set the usize::MAX limit to something around the Lambda's max memory, possibly a tad lower
         let body_bytes = axum::body::to_bytes(request.into_body(), usize::MAX)
             .await
             .unwrap_or_default();
@@ -43,14 +43,13 @@ impl Proxy {
             .request(method, &url)
             .headers(headers)
             .body(body_bytes)
-            .send()
-            .await;
+            .send();
 
         match upstream_response {
             Ok(resp) => {
                 let status = resp.status();
                 let headers = resp.headers().clone();
-                let resp_body = resp.bytes().await.unwrap_or_default();
+                let resp_body = resp.bytes().unwrap_or_default();
 
                 let mut response = axum::response::Response::builder().status(status);
                 for (key, value) in headers.iter() {
