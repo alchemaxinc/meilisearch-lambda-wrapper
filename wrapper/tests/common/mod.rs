@@ -2,6 +2,61 @@ use reqwest::{blocking, header};
 use serde::Deserialize;
 use std::env;
 
+#[derive(Debug, Deserialize)]
+pub struct TaskDetails {
+    #[serde(rename = "receivedDocuments")]
+    pub received_documents: u64,
+    #[serde(rename = "indexedDocuments")]
+    pub indexed_documents: u64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TaskResponse {
+    pub status: String,
+    pub details: TaskDetails,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct IndexEntry {
+    pub uid: String,
+    #[serde(rename = "primaryKey")]
+    pub primary_key: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct IndexListResponse {
+    pub results: Vec<IndexEntry>,
+    pub offset: u64,
+    pub limit: u64,
+    pub total: u64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TaskEntry {
+    #[serde(rename = "indexUid")]
+    pub index_uid: String,
+    pub status: String,
+    #[serde(rename = "type")]
+    pub task_type: String,
+    #[serde(rename = "canceledBy")]
+    pub canceled_by: serde_json::Value,
+    pub details: TaskDetails,
+    pub error: serde_json::Value,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TaskListResponse {
+    pub results: Vec<TaskEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct KeyListResponse {
+    pub results: Vec<serde_json::Value>,
+    pub offset: u64,
+    pub limit: u64,
+    pub total: u64,
+}
+
 pub struct TestContext {
     base_url: String,
     client: blocking::Client,
@@ -41,51 +96,4 @@ impl TestContext {
             .post(format!("{}{}", self.base_url, path))
             .headers(self.headers.clone());
     }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TaskDetails {
-    #[serde(rename = "receivedDocuments")]
-    pub received_documents: Option<u64>,
-    #[serde(rename = "indexedDocuments")]
-    pub indexed_documents: Option<u64>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TaskResponse {
-    pub status: String,
-    pub details: Option<TaskDetails>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct IndexEntry {
-    pub uid: String,
-    #[serde(rename = "primaryKey")]
-    pub primary_key: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct IndexListResponse {
-    pub results: Vec<IndexEntry>,
-    pub offset: u64,
-    pub limit: u64,
-    pub total: u64,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TaskEntry {
-    #[serde(rename = "indexUid")]
-    pub index_uid: Option<String>,
-    pub status: String,
-    #[serde(rename = "type")]
-    pub task_type: String,
-    #[serde(rename = "canceledBy")]
-    pub canceled_by: Option<serde_json::Value>,
-    pub details: Option<TaskDetails>,
-    pub error: Option<serde_json::Value>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TaskListResponse {
-    pub results: Vec<TaskEntry>,
 }
