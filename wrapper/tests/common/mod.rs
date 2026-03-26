@@ -2,10 +2,6 @@ use reqwest::{blocking, header};
 use serde::Deserialize;
 use std::env;
 
-// Test polling configuration
-pub const POLL_INTERVAL_MS: u64 = 100;
-pub const MAX_POLL_ATTEMPTS: u64 = 300;
-
 #[derive(Debug, Deserialize)]
 pub struct TaskDetails {
     #[serde(rename = "receivedDocuments")]
@@ -56,8 +52,6 @@ pub struct TaskListResponse {
 #[derive(Debug, Deserialize)]
 pub struct KeyListResponse {
     pub results: Vec<serde_json::Value>,
-    pub offset: u64,
-    pub limit: u64,
     pub total: u64,
 }
 

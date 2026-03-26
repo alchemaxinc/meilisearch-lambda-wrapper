@@ -67,6 +67,7 @@ jobs:
         run: npm i -D prettier@${{ env.PRETTIER_VERSION }}
 
   lint-rust:
+    name: lint-rust (${{ matrix.name }})
     runs-on: ubuntu-latest
     strategy:
       matrix:

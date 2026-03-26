@@ -65,9 +65,8 @@ mod proxy_forwarding {
 }
 
 // Polling Wrapper tests if the POST endpoint is correctly wrapped with a POST/GET polling mechanism.
+// The proxy should handle polling internally and return the completed task response directly.
 mod polling_wrapper {
-    use std::{thread, time};
-
     use super::common;
 
     #[test]
@@ -89,47 +88,16 @@ mod polling_wrapper {
             response.status()
         );
 
-        // Poll until the indexing task completes
-        let poll_interval = time::Duration::from_millis(common::POLL_INTERVAL_MS);
+        let task: common::TaskResponse =
+            response.json().expect("Failed to parse task response JSON");
 
-        let task = 'poll: {
-            for attempt in 1..=common::MAX_POLL_ATTEMPTS {
-                let response = ctx
-                    .get("/tasks/0")
-                    .send()
-                    .expect("Failed to send task poll request");
-
-                if response.status() != 200 {
-                    eprintln!(
-                        "Attempt {attempt}/{}: Task endpoint returned status {}, waiting...",
-                        common::MAX_POLL_ATTEMPTS,
-                        response.status()
-                    );
-                    thread::sleep(poll_interval);
-                    continue;
-                }
-
-                let task: common::TaskResponse =
-                    response.json().expect("Failed to parse task response JSON");
-
-                if task.status == "succeeded" || task.status == "failed" {
-                    break 'poll task;
-                }
-
-                eprintln!(
-                    "Attempt {attempt}/{}: Task status is '{}', waiting...",
-                    common::MAX_POLL_ATTEMPTS,
-                    task.status
-                );
-                thread::sleep(poll_interval);
-            }
-
-            panic!(
-                "Task did not complete within {} attempts",
-                common::MAX_POLL_ATTEMPTS
-            );
-        };
-
+        // The proxy should have waited for the task to complete.
+        // Should NOT return an enqueued response.
+        assert_eq!(
+            task.status, "succeeded",
+            "Expected proxy to return completed task, got '{}'. If 'enqueued', the proxy is not polling.",
+            task.status
+        );
         assert_eq!(task.details.received_documents, 31944);
         assert_eq!(task.details.indexed_documents, 31944);
 

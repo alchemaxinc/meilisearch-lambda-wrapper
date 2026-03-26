@@ -20,3 +20,7 @@ pub static POLL_INTERVAL: std::sync::LazyLock<std::time::Duration> =
             .expect("MEILISEARCH_POLL_INTERVAL_MS must be a number");
         return std::time::Duration::from_millis(ms);
     });
+
+// TODO: Will probably be needed when we put this behind the AWS Gateway
+// // Headers to strip from proxied responses
+// pub const HEADERS_TO_SKIP: &[&str] = &["transfer-encoding", "content-length"];
