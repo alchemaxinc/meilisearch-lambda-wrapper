@@ -21,6 +21,6 @@ pub static POLL_INTERVAL: std::sync::LazyLock<std::time::Duration> =
         return std::time::Duration::from_millis(ms);
     });
 
-// TODO: Will probably be needed when we put this behind the AWS Gateway
-// // Headers to strip from proxied responses
-// pub const HEADERS_TO_SKIP: &[&str] = &["transfer-encoding", "content-length"];
+// Headers to strip from proxied responses — the proxy buffers the full body,
+// so transfer-encoding and content-length from upstream are no longer accurate.
+pub const HEADERS_TO_SKIP: &[&str] = &["transfer-encoding", "content-length", "connection"];

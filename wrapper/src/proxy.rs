@@ -16,6 +16,31 @@ struct TaskStatus {
     status: String,
 }
 
+/// Sanitize request headers before forwarding to upstream.
+fn sanitize_request_headers(headers: &axum::http::HeaderMap) -> reqwest::header::HeaderMap {
+    let mut sanitized = reqwest::header::HeaderMap::new();
+    for (key, value) in headers.iter() {
+        sanitized.insert(key, value.clone());
+    }
+    return sanitized;
+}
+
+/// Filter out hop-by-hop headers that shouldn't be forwarded by the proxy.
+fn build_response(
+    status: reqwest::StatusCode,
+    headers: &reqwest::header::HeaderMap,
+    body: bytes::Bytes,
+) -> axum::response::Response {
+    let mut response = axum::response::Response::builder().status(status.as_u16());
+    for (key, value) in headers.iter() {
+        if config::HEADERS_TO_SKIP.contains(&key.as_str()) {
+            continue;
+        }
+        response = response.header(key, value);
+    }
+    return response.body(axum::body::Body::from(body)).unwrap();
+}
+
 impl Proxy {
     pub fn new() -> Self {
         return Self {
@@ -25,6 +50,8 @@ impl Proxy {
 
     pub fn router(self) -> axum::Router {
         return axum::Router::new()
+            // CORS preflight
+            .route("/{*path}", axum::routing::options(Self::options_handler))
             // Special synchronous handling: any POST to /indexes/
             .route(
                 "/indexes/{*rest}",
@@ -33,6 +60,14 @@ impl Proxy {
             // Anything else that can be proxied as normal
             .fallback(axum::routing::any(Self::proxy_handler))
             .with_state(self);
+    }
+
+    async fn options_handler() -> axum::response::Response {
+        return axum::response::Response::builder()
+            .status(200)
+            .header("content-length", "0")
+            .body(axum::body::Body::empty())
+            .unwrap();
     }
 
     async fn wait_for_task(
@@ -97,7 +132,7 @@ impl Proxy {
         request: axum::extract::Request,
     ) -> axum::response::Response {
         let url = format!("{}{}", config::MEILISEARCH_HOST, request.uri());
-        let headers = request.headers().clone();
+        let headers = sanitize_request_headers(request.headers());
 
         tracing::info!(url = %url, "intercepted index POST");
 
@@ -180,7 +215,7 @@ impl Proxy {
 
         tracing::info!(method = %method, url = %url, "proxying request");
 
-        let headers = request.headers().clone();
+        let headers = sanitize_request_headers(request.headers());
         // TODO: Set the limit to something around the Lambda's memory limit
         let body_bytes = axum::body::to_bytes(request.into_body(), usize::MAX)
             .await
@@ -199,12 +234,7 @@ impl Proxy {
                 let status = resp.status();
                 let headers = resp.headers().clone();
                 let resp_body = resp.bytes().await.unwrap_or_default();
-
-                let mut response = axum::response::Response::builder().status(status);
-                for (key, value) in headers.iter() {
-                    response = response.header(key, value);
-                }
-                return response.body(axum::body::Body::from(resp_body)).unwrap();
+                return build_response(status, &headers, resp_body);
             }
             Err(e) => {
                 tracing::error!(error = %e, "upstream request failed");
