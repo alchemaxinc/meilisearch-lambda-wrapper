@@ -5,12 +5,12 @@ on:
   schedule:
     - cron: "0 0 * * 0" # Run every Sunday at midnight
 
-env:
-  RUST_TOOLCHAIN: "1.94.0"
-
 permissions:
   contents: write
   pull-requests: write
+
+env:
+  RUST_TOOLCHAIN: "1.94.0"
 
 jobs:
   get-current-local-meilisearch-docker-version:

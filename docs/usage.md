@@ -1,30 +1,44 @@
-# Consumer Usage
+# Usage
 
-To use the wrapper in your own project, create a Dockerfile that installs it
-directly from this repository using `git clone` + `cargo install`:
+Pre-built binaries are available on the
+[Releases](https://github.com/alchemaxinc/meilisearch-lambda-wrapper/releases) page
+for `x86_64` and `aarch64`.
+
+## Dockerfile
 
 ```dockerfile
-# Build stage: compile the wrapper binary from the repository
-FROM rust:1.94-alpine AS builder
-RUN apk add --no-cache musl-dev git
-RUN git clone --depth 1 \
-    https://github.com/alchemaxinc/meilisearch-lambda-wrapper.git /tmp/repo && \
-    cargo install --path /tmp/repo/wrapper
+FROM alpine:3.21 AS fetcher
 
-# Runtime stage: Meilisearch + compiled wrapper binary
+ARG WRAPPER_VERSION=1.0.0
+ARG TARGETARCH
+
+RUN apk add --no-cache curl && \
+    case "${TARGETARCH}" in \
+      amd64) RUST_TARGET="x86_64-unknown-linux-musl" ;; \
+      arm64) RUST_TARGET="aarch64-unknown-linux-musl" ;; \
+    esac && \
+    curl -fsSL -o /wrapper \
+      "https://github.com/alchemaxinc/meilisearch-lambda-wrapper/releases/download/v${WRAPPER_VERSION}/meilisearch-lambda-wrapper-${RUST_TARGET}" && \
+    chmod +x /wrapper
+
 FROM getmeili/meilisearch:v1.39.0
 WORKDIR /app
-COPY --from=builder /usr/local/cargo/bin/meilisearch-lambda-wrapper ./wrapper
+COPY --from=fetcher /wrapper ./wrapper
 COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 /lambda-adapter /opt/extensions/lambda-adapter
 ENTRYPOINT ["/app/wrapper"]
 ```
 
-## Version pinning
+Pin the version with a build arg:
 
-To pin to a specific branch or tag, use the `--branch` flag:
+```sh
+docker build --build-arg WRAPPER_VERSION=1.2.3 .
+```
 
-```dockerfile
-RUN git clone --branch v1.0.0 --depth 1 \
-    https://github.com/alchemaxinc/meilisearch-lambda-wrapper.git /tmp/repo && \
-    cargo install --path /tmp/repo/wrapper
+## Verifying checksums
+
+Each release includes `.sha256` files per binary:
+
+```sh
+curl -fsSL -O https://github.com/alchemaxinc/meilisearch-lambda-wrapper/releases/download/v1.2.3/meilisearch-lambda-wrapper-x86_64-unknown-linux-musl{,.sha256}
+sha256sum -c meilisearch-lambda-wrapper-x86_64-unknown-linux-musl.sha256
 ```
