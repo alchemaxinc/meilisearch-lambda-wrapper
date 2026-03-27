@@ -137,8 +137,10 @@ jobs:
           base-branch: "main"
           branch-prefix: "fix/auto/meilisearch-docker-version"
           files: "Dockerfile"
-          commit-message: "fix: update Meilisearch Docker version to ${{ needs.get-newest-meilisearch-docker-version.outputs.latest_version }}"
-          pr-title: "fix: automatic Meilisearch Docker version upgrade"
+          # chore: so semantic-release doesn't create a new release for
+          # Dockerfile-only changes (which don't affect the wrapper binary)
+          commit-message: "chore: update Meilisearch Docker version to ${{ needs.get-newest-meilisearch-docker-version.outputs.latest_version }}"
+          pr-title: "chore: automatic Meilisearch Docker version upgrade"
           pr-body: |
             This PR updates the Meilisearch Docker version in the Dockerfile to the latest available version.
 
