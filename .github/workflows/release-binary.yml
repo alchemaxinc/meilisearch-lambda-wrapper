@@ -14,14 +14,20 @@ permissions:
 
 env:
   RUST_TOOLCHAIN: "1.94.0"
-  # Rust target triple: {arch}-{vendor}-{os}-{libc}
-  # "unknown" = no specific vendor; "musl" = statically linked (no glibc dependency)
-  TARGET: x86_64-unknown-linux-musl
 
 jobs:
   build-and-upload:
-    name: Build and upload binary
+    name: Build ${{ matrix.target }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          # Rust target triple: {arch}-{vendor}-{os}-{libc}
+          # "unknown" = no specific vendor; "musl" = statically linked (no glibc dependency)
+          - target: x86_64-unknown-linux-musl
+            packages: musl-tools
+          - target: aarch64-unknown-linux-musl
+            packages: musl-tools gcc-aarch64-linux-gnu
 
     steps:
       - name: Create temporary GitHub App Token
@@ -38,11 +44,11 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          targets: ${{ env.TARGET }}
+          targets: ${{ matrix.target }}
           toolchain: ${{ env.RUST_TOOLCHAIN }}
 
-      - name: Install musl-tools
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.packages }}
 
       - name: Cache Cargo dependencies
         uses: actions/cache@v5
@@ -51,15 +57,17 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             wrapper/target
-          key: v1-release-${{ env.TARGET }}-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('wrapper/Cargo.lock') }}
-          restore-keys: v1-release-${{ env.TARGET }}-${{ env.RUST_TOOLCHAIN }}-
+          key: v1-release-${{ matrix.target }}-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('wrapper/Cargo.lock') }}
+          restore-keys: v1-release-${{ matrix.target }}-${{ env.RUST_TOOLCHAIN }}-
 
       - name: Build binary
-        run: cargo build --manifest-path wrapper/Cargo.toml --release --target ${{ env.TARGET }}
+        run: cargo build --manifest-path wrapper/Cargo.toml --release --target ${{ matrix.target }}
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: aarch64-linux-gnu-gcc
 
       - name: Upload release asset
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
         run: |
           gh release upload "${{ github.event.release.tag_name || inputs.tag_name }}" \
-            "wrapper/target/${{ env.TARGET }}/release/meilisearch-lambda-wrapper#meilisearch-lambda-wrapper-${{ env.TARGET }}"
+            "wrapper/target/${{ matrix.target }}/release/meilisearch-lambda-wrapper#meilisearch-lambda-wrapper-${{ matrix.target }}"
