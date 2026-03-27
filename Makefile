@@ -8,8 +8,8 @@ DOCKER_IMAGE_NAME=$(SERVICE_NAME)-api
 DOCKER_IMAGE_TAG?=abc123def
 
 # Rust crate manifest paths
-SYNC_VERSIONS_MANIFEST=infrastructure/sync_versions/Cargo.toml
 WRAPPER_MANIFEST=wrapper/Cargo.toml
+SYNC_VERSIONS_MANIFEST=infrastructure/sync_versions/Cargo.toml
 
 # Functions for reusable docker build commands
 define docker_build
@@ -73,8 +73,8 @@ build: ## Build all Rust crates
 		--manifest-path $(WRAPPER_MANIFEST) \
 		--release
 
-.PHONY: test
-test: ## Run unit tests
+.PHONY: test-unit
+test-unit: ## Run unit tests
 	cargo test \
 		--manifest-path $(SYNC_VERSIONS_MANIFEST)
 	cargo test \
