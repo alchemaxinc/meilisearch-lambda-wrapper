@@ -1,5 +1,10 @@
-#![allow(dead_code)]
+//! Manages the Meilisearch child process lifecycle.
+//!
+//! Starts the `meilisearch` binary as a subprocess, pipes its stdout/stderr
+//! into the structured logger, and kills it on drop.
 
+/// Handle to the running Meilisearch child process. Killing the process is
+/// handled automatically via the [`Drop`] implementation.
 pub struct Meilisearch {
     process: std::process::Child,
 }
@@ -7,6 +12,7 @@ pub struct Meilisearch {
 const MEILISEARCH_BINARY_NAME: &str = "meilisearch";
 
 impl Meilisearch {
+    /// Spawns the Meilisearch binary and wires up log forwarding for stdout/stderr.
     pub fn start() -> Result<Self, Box<dyn std::error::Error>> {
         tracing::info!(
             host = crate::config::MEILISEARCH_HOST,
@@ -51,6 +57,7 @@ impl Meilisearch {
         return Ok(Self { process: child });
     }
 
+    /// Returns the OS process ID of the running Meilisearch instance.
     pub fn pid(&self) -> u32 {
         return self.process.id();
     }
