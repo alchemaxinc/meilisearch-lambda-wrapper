@@ -86,7 +86,7 @@ impl Proxy {
     }
 
     /// Polls Meilisearch's `/tasks/{uid}` endpoint until the task reaches a
-    /// terminal state (`succeeded`, `failed`, or `canceled`) or the deadline
+    /// terminal state (`succeeded`, `failed`, or `canceled`) or the timeout
     /// expires. Returns the final task JSON body on success.
     async fn wait_for_task(
         &self,
@@ -94,7 +94,7 @@ impl Proxy {
         headers: &reqwest::header::HeaderMap,
     ) -> Result<bytes::Bytes, String> {
         let url = format!("{}/tasks/{}", config::MEILISEARCH_HOST, task_uid);
-        let deadline = std::time::Instant::now() + *config::MAX_WAIT_TIME;
+        let timeout_at = std::time::Instant::now() + *config::MAX_WAIT_TIME;
         let poll_interval = *config::POLL_INTERVAL;
 
         tracing::debug!(
@@ -103,7 +103,7 @@ impl Proxy {
             "polling task status"
         );
 
-        while std::time::Instant::now() < deadline {
+        while std::time::Instant::now() < timeout_at {
             match self.client.get(&url).headers(headers.clone()).send().await {
                 Ok(resp) => {
                     let status_code = resp.status();
