@@ -35,8 +35,8 @@ Find an example Terraform setup for AWS Lambda + EFS in the [`docs/`](docs/terra
 
 ## Usage
 
-See [`docs/usage.md`](docs/usage.md) for instructions on how to use this wrapper in your own project
-via `cargo install` from Git.
+See [`docs/usage.md`](docs/usage.md) for instructions on how to install this wrapper in your own project
+via `git clone` + `cargo install`.
 
 ## Does it work?
 

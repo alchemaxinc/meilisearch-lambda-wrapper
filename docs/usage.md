@@ -1,15 +1,15 @@
 # Consumer Usage
 
 To use the wrapper in your own project, create a Dockerfile that installs it
-directly from this repository using `cargo install`:
+directly from this repository using `git clone` + `cargo install`:
 
 ```dockerfile
 # Build stage: compile the wrapper binary from the repository
 FROM rust:1.94-alpine AS builder
-RUN apk add --no-cache musl-dev
-RUN cargo install \
-    --git https://github.com/alchemaxinc/meilisearch-lambda-wrapper.git \
-    --path wrapper
+RUN apk add --no-cache musl-dev git
+RUN git clone --depth 1 \
+    https://github.com/alchemaxinc/meilisearch-lambda-wrapper.git /tmp/repo && \
+    cargo install --path /tmp/repo/wrapper
 
 # Runtime stage: Meilisearch + compiled wrapper binary
 FROM getmeili/meilisearch:v1.39.0
@@ -21,11 +21,10 @@ ENTRYPOINT ["/app/wrapper"]
 
 ## Version pinning
 
-To pin to a specific release, use the `--tag` flag:
+To pin to a specific branch or tag, use the `--branch` flag:
 
 ```dockerfile
-RUN cargo install \
-    --git https://github.com/alchemaxinc/meilisearch-lambda-wrapper.git \
-    --tag v1.0.0 \
-    --path wrapper
+RUN git clone --branch v1.0.0 --depth 1 \
+    https://github.com/alchemaxinc/meilisearch-lambda-wrapper.git /tmp/repo && \
+    cargo install --path /tmp/repo/wrapper
 ```
