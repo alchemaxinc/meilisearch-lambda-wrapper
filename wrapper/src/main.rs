@@ -1,4 +1,5 @@
 mod config;
+mod meilisearch;
 mod proxy;
 
 #[tokio::main]
@@ -14,12 +15,21 @@ async fn main() {
         .flatten_event(true)
         .init();
 
+    let meilisearch = match meilisearch::Meilisearch::start() {
+        Ok(m) => m,
+        Err(e) => {
+            tracing::error!(error = %e, "failed to start meilisearch");
+            std::process::exit(1);
+        }
+    };
+    tracing::info!(pid = meilisearch.pid(), "meilisearch daemon is running");
+
     let addr = format!("0.0.0.0:{}", config::PROXY_LISTEN_PORT);
     let app = proxy::Proxy::new().router();
 
     tracing::info!(
         port = config::PROXY_LISTEN_PORT,
-        "starting MeiliSearch wrapper proxy"
+        "starting meilisearch wrapper proxy"
     );
 
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();

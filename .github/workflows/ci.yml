@@ -67,6 +67,7 @@ jobs:
         run: npm i -D prettier@${{ env.PRETTIER_VERSION }}
 
   lint-rust:
+    name: lint-rust (${{ matrix.name }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -134,7 +135,7 @@ jobs:
           restore-keys: v1-cargo-${{ env.RUST_TOOLCHAIN }}-
 
       - name: Run unit tests
-        run: make test
+        run: make test-unit
 
   test-integration:
     runs-on: ubuntu-latest

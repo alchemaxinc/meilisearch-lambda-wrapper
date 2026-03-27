@@ -2,10 +2,6 @@ use reqwest::{blocking, header};
 use serde::Deserialize;
 use std::env;
 
-// Test polling configuration
-pub const POLL_INTERVAL_MS: u64 = 100;
-pub const MAX_POLL_ATTEMPTS: u64 = 300;
-
 #[derive(Debug, Deserialize)]
 pub struct TaskDetails {
     #[serde(rename = "receivedDocuments")]
@@ -56,9 +52,6 @@ pub struct TaskListResponse {
 #[derive(Debug, Deserialize)]
 pub struct KeyListResponse {
     pub results: Vec<serde_json::Value>,
-    pub offset: u64,
-    pub limit: u64,
-    pub total: u64,
 }
 
 pub struct TestContext {
@@ -69,8 +62,10 @@ pub struct TestContext {
 
 impl TestContext {
     pub fn new() -> Self {
-        let host = env::var("MEILI_HOST").expect("MEILI_HOST environment variable is not set");
-        let port = env::var("MEILI_PORT").expect("MEILI_PORT environment variable is not set");
+        let port = env::var("MEILI_PORT").unwrap_or_else(|_| return "8080".to_string());
+        // Since running this locally, you want to use `localhost`, but in a docker-compose'd network,
+        // we need to overwrite it with the docker container's hostname.
+        let host = env::var("MEILI_HOST").unwrap_or_else(|_| return "localhost".to_string());
         let master_key =
             env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY environment variable is not set");
 
