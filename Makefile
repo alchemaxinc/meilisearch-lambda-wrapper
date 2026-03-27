@@ -11,6 +11,9 @@ DOCKER_IMAGE_TAG?=abc123def
 WRAPPER_MANIFEST=wrapper/Cargo.toml
 SYNC_VERSIONS_MANIFEST=infrastructure/sync_versions/Cargo.toml
 
+# Integration test compose file
+INTEGRATION_COMPOSE=wrapper/tests/docker-compose.yml
+
 # Functions for reusable docker build commands
 define docker_build
 	docker buildx build \
@@ -82,8 +85,15 @@ test-unit: ## Run unit tests
 
 .PHONY: test-integration
 test-integration: ## Run integration tests
-	docker compose -f wrapper/tests/docker-compose.yml build
-	docker compose -f wrapper/tests/docker-compose.yml up --abort-on-container-exit --exit-code-from integration-tests
+	docker build -t $(DOCKER_IMAGE_NAME):test .
+	docker compose -f $(INTEGRATION_COMPOSE) up -d --wait
+	MEILI_MASTER_KEY=test-master-key-12345 cargo test \
+		--manifest-path $(WRAPPER_MANIFEST) \
+		--features integration \
+		--test integration_test -- --test-threads=1; \
+	exit_code=$$?; \
+	docker compose -f $(INTEGRATION_COMPOSE) down; \
+	exit $$exit_code
 
 .PHONY: build-docker-api-amd64
 build-docker-api-amd64: ## Build Docker image for API (amd64)
