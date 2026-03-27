@@ -1,3 +1,9 @@
+//! Meilisearch Lambda Wrapper — an HTTP proxy that wraps Meilisearch's async API
+//! to run on AWS Lambda.
+//! Starts Meilisearch as a child process and proxies all
+//! requests, converting async write operations into synchronous ones by polling
+//! until completion.
+
 mod config;
 mod meilisearch;
 mod proxy;

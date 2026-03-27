@@ -1,22 +1,33 @@
+//! HTTP reverse proxy that sits in front of Meilisearch.
+//!
+//! - GET/DELETE/PATCH requests are forwarded as-is.
+//! - POST requests to `/indexes/*` are intercepted: the proxy forwards the
+//!   request, extracts the `taskUid` from the response, polls until the task
+//!   completes, and returns the final result synchronously.
+//! - OPTIONS requests return an empty 200 for CORS preflight.
+
 use crate::config;
 
+/// Reverse proxy state shared across all request handlers.
 #[derive(Clone)]
 pub struct Proxy {
     client: reqwest::Client,
 }
 
+/// Response shape for a newly enqueued Meilisearch task.
 #[derive(serde::Deserialize)]
 struct EnqueuedTask {
     #[serde(rename = "taskUid")]
     task_uid: u64,
 }
 
+/// Minimal task status response used during polling.
 #[derive(serde::Deserialize)]
 struct TaskStatus {
     status: String,
 }
 
-/// Sanitize request headers before forwarding to upstream.
+/// Copies incoming request headers into a new map for the upstream request.
 fn sanitize_request_headers(headers: &axum::http::HeaderMap) -> reqwest::header::HeaderMap {
     let mut sanitized = reqwest::header::HeaderMap::new();
     for (key, value) in headers.iter() {
@@ -25,7 +36,8 @@ fn sanitize_request_headers(headers: &axum::http::HeaderMap) -> reqwest::header:
     return sanitized;
 }
 
-/// Filter out hop-by-hop headers that shouldn't be forwarded by the proxy.
+/// Builds an outgoing response, filtering out hop-by-hop headers listed in
+/// [`config::HEADERS_TO_SKIP`].
 fn build_response(
     status: reqwest::StatusCode,
     headers: &reqwest::header::HeaderMap,
@@ -42,12 +54,14 @@ fn build_response(
 }
 
 impl Proxy {
+    /// Creates a new proxy with a default HTTP client.
     pub fn new() -> Self {
         return Self {
             client: reqwest::Client::new(),
         };
     }
 
+    /// Builds the axum router with all route handlers.
     pub fn router(self) -> axum::Router {
         return axum::Router::new()
             // CORS preflight
@@ -62,6 +76,7 @@ impl Proxy {
             .with_state(self);
     }
 
+    /// Handles CORS preflight requests with an empty 200 response.
     async fn options_handler() -> axum::response::Response {
         return axum::response::Response::builder()
             .status(200)
@@ -70,6 +85,9 @@ impl Proxy {
             .unwrap();
     }
 
+    /// Polls Meilisearch's `/tasks/{uid}` endpoint until the task reaches a
+    /// terminal state (`succeeded`, `failed`, or `canceled`) or the deadline
+    /// expires. Returns the final task JSON body on success.
     async fn wait_for_task(
         &self,
         task_uid: u64,
@@ -127,6 +145,10 @@ impl Proxy {
         return Err(format!("timed out waiting for task {}", task_uid));
     }
 
+    /// Intercepts POST requests to `/indexes/*`. Forwards the request to
+    /// Meilisearch, extracts the `taskUid` from the response, and polls until
+    /// the task completes — turning the async operation into a synchronous one.
+    /// If the response doesn't contain a `taskUid`, it's returned as-is.
     async fn index_post_handler(
         axum::extract::State(proxy): axum::extract::State<Self>,
         request: axum::extract::Request,
@@ -136,8 +158,7 @@ impl Proxy {
 
         tracing::info!(url = %url, "intercepted index POST");
 
-        // TODO: Set the limit to something around the Lambda's memory limit
-        let body_bytes = axum::body::to_bytes(request.into_body(), usize::MAX)
+        let body_bytes = axum::body::to_bytes(request.into_body(), *config::MAX_REQUEST_BODY_SIZE)
             .await
             .unwrap_or_default();
 
@@ -206,6 +227,8 @@ impl Proxy {
         }
     }
 
+    /// Generic pass-through handler for all non-intercepted requests. Buffers
+    /// the full request/response bodies and strips hop-by-hop headers.
     async fn proxy_handler(
         axum::extract::State(proxy): axum::extract::State<Self>,
         request: axum::extract::Request,
@@ -216,8 +239,7 @@ impl Proxy {
         tracing::info!(method = %method, url = %url, "proxying request");
 
         let headers = sanitize_request_headers(request.headers());
-        // TODO: Set the limit to something around the Lambda's memory limit
-        let body_bytes = axum::body::to_bytes(request.into_body(), usize::MAX)
+        let body_bytes = axum::body::to_bytes(request.into_body(), *config::MAX_REQUEST_BODY_SIZE)
             .await
             .unwrap_or_default();
 
