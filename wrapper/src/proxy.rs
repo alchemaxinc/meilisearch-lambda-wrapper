@@ -64,8 +64,6 @@ impl Proxy {
     /// Builds the axum router with all route handlers.
     pub fn router(self) -> axum::Router {
         return axum::Router::new()
-            // CORS preflight
-            .route("/{*path}", axum::routing::options(Self::options_handler))
             // Special synchronous handling: any POST to /indexes/
             .route(
                 "/indexes/{*rest}",
@@ -227,12 +225,18 @@ impl Proxy {
         }
     }
 
-    /// Generic pass-through handler for all non-intercepted requests. Buffers
-    /// the full request/response bodies and strips hop-by-hop headers.
+    /// Generic pass-through handler for all non-intercepted requests.
+    /// OPTIONS requests return an empty 200 for CORS preflight; everything
+    /// else is forwarded to Meilisearch.
     async fn proxy_handler(
         axum::extract::State(proxy): axum::extract::State<Self>,
         request: axum::extract::Request,
     ) -> axum::response::Response {
+        // Handle CORS preflight
+        if request.method() == axum::http::Method::OPTIONS {
+            return Self::options_handler().await;
+        }
+
         let url = format!("{}{}", config::MEILISEARCH_HOST, request.uri());
         let method = request.method().clone();
 
