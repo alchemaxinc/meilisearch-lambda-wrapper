@@ -60,10 +60,12 @@ pub struct TestContext {
     headers: header::HeaderMap,
 }
 
-const MEILISEARCH_HOST: &str = "http://localhost:8080";
-
 impl TestContext {
     pub fn new() -> Self {
+        let port = env::var("MEILI_PORT").unwrap_or_else(|_| return "8080".to_string());
+        // Since running this locally, you want to use `localhost`, but in a docker-compose'd network,
+        // we need to overwrite it with the docker container's hostname.
+        let host = env::var("MEILI_HOST").unwrap_or_else(|_| return "localhost".to_string());
         let master_key =
             env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY environment variable is not set");
 
@@ -75,7 +77,7 @@ impl TestContext {
 
         return Self {
             client: blocking::Client::new(),
-            base_url: MEILISEARCH_HOST.to_string(),
+            base_url: format!("http://{host}:{port}"),
             headers,
         };
     }
