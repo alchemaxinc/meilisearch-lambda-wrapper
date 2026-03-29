@@ -3,8 +3,7 @@
   "plugins": [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
-    "@semantic-release/github",
-    "semantic-release-cargo"
+    "@semantic-release/github"
   ],
   "repositoryUrl": "https://github.com/alchemaxinc/meilisearch-lambda-wrapper",
   "tagFormat": "v${version}"

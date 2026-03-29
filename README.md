@@ -9,7 +9,7 @@ flowchart LR
 
     subgraph Lambda["AWS Lambda"]
         subgraph Docker["Docker Container"]
-            Wrapper["meilisearch-lambda-wrapper"] -->|"1: Forward<br/>request"| Meili["getmeili/meilisearch"]
+            Wrapper["wrapper"] -->|"1: Forward<br/>request"| Meili["getmeili/meilisearch"]
             Meili -.->|"2: Poll until<br/>complete (or<br/>Lambda timeout)"| Wrapper
         end
     end

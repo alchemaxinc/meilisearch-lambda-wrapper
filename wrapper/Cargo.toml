@@ -1,6 +1,5 @@
 [package]
-name = "meilisearch-lambda-wrapper"
-version = "0.1.0"
+name = "wrapper"
 edition = "2024"
 publish = false
 
