@@ -6,9 +6,5 @@ dist/
 # OSX
 *.DS_Store
 
-# Python
-.venv/
-__pycache__/
-*.pyc
-build/
-*.egg-info/
+# Rust
+target/

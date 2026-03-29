@@ -7,6 +7,13 @@ SERVICE_NAME=meilisearch-lambda-wrapper
 DOCKER_IMAGE_NAME=$(SERVICE_NAME)-api
 DOCKER_IMAGE_TAG?=abc123def
 
+# Rust crate manifest paths
+WRAPPER_MANIFEST=wrapper/Cargo.toml
+SYNC_VERSIONS_MANIFEST=infrastructure/sync_versions/Cargo.toml
+
+# Integration test compose file
+INTEGRATION_COMPOSE=wrapper/tests/docker-compose.yml
+
 # Functions for reusable docker build commands
 define docker_build
 	docker buildx build \
@@ -28,18 +35,65 @@ clean: ## Clean up built files
 
 .PHONY: lint
 lint: ## Run linter
-	black --check .
+	cargo clippy \
+		--manifest-path $(SYNC_VERSIONS_MANIFEST) \
+		--all-targets \
+		-- -D warnings
+	cargo clippy \
+		--manifest-path $(WRAPPER_MANIFEST) \
+		--all-targets \
+		-- -D warnings
+	cargo fmt \
+		--manifest-path $(SYNC_VERSIONS_MANIFEST) \
+		-- --check
+	cargo fmt \
+		--manifest-path $(WRAPPER_MANIFEST) \
+		-- --check
 	npx prettier --check .
 
 .PHONY: format
 format: ## Format files
-	black .
+	cargo clippy \
+		--manifest-path $(SYNC_VERSIONS_MANIFEST) \
+		--all-targets \
+		--fix --allow-dirty
+	cargo clippy \
+		--manifest-path $(WRAPPER_MANIFEST) \
+		--all-targets \
+		--fix --allow-dirty
+	cargo fmt \
+		--manifest-path $(SYNC_VERSIONS_MANIFEST)
+	cargo fmt \
+		--manifest-path $(WRAPPER_MANIFEST)
 	npx prettier --write .
+
+.PHONY: build
+build: ## Build all Rust crates
+	cargo build \
+		--manifest-path $(SYNC_VERSIONS_MANIFEST) \
+		--release
+	cargo build \
+		--manifest-path $(WRAPPER_MANIFEST) \
+		--release
+
+.PHONY: test-unit
+test-unit: ## Run unit tests
+	cargo test \
+		--manifest-path $(SYNC_VERSIONS_MANIFEST)
+	cargo test \
+		--manifest-path $(WRAPPER_MANIFEST)
 
 .PHONY: test-integration
 test-integration: ## Run integration tests
-	docker compose -f wrapper/test/docker-compose.yml build
-	docker compose -f wrapper/test/docker-compose.yml up --abort-on-container-exit --exit-code-from integration-tests
+	docker build -t $(DOCKER_IMAGE_NAME):test .
+	docker compose -f $(INTEGRATION_COMPOSE) up -d --wait
+	MEILI_MASTER_KEY=test-master-key-12345 cargo test \
+		--manifest-path $(WRAPPER_MANIFEST) \
+		--features integration \
+		--test integration_test -- --test-threads=1; \
+	exit_code=$$?; \
+	docker compose -f $(INTEGRATION_COMPOSE) down; \
+	exit $$exit_code
 
 .PHONY: build-docker-api-amd64
 build-docker-api-amd64: ## Build Docker image for API (amd64)
