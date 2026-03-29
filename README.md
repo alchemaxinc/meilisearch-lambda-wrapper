@@ -33,6 +33,11 @@ the asynchronous calls in a wrapper that waits for the operations to complete be
 
 Find an example Terraform setup for AWS Lambda + EFS in the [`docs/`](docs/terraform_example/README.md) folder.
 
+## Usage
+
+See [`docs/usage.md`](docs/usage.md) for instructions on how to use the pre-built
+binary from GitHub Releases in your own Dockerfile.
+
 ## Does it work?
 
 It works on my machine :man_shrugging:. Not entirely sure about multiple concurrent requests. This is a proof of

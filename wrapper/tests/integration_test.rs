@@ -1,0 +1,141 @@
+#![cfg(feature = "integration")]
+mod common;
+
+// The Proxy Forwarding integration test verifies that we've correctly implemented
+// simple forwarding of the /keys and /index endpoint. If they work, we assume it all works.
+// The more complex POST endpoint will then be handled separately as a part of the wrapping
+// mechanism tests.
+mod proxy_forwarding {
+    use super::common;
+
+    #[test]
+    fn get_keys() {
+        let ctx = common::TestContext::new();
+
+        let response = ctx
+            .get("/keys")
+            .send()
+            .expect("Failed to send get keys request");
+
+        assert_eq!(
+            response.status(),
+            200,
+            "Get keys failed with status {}",
+            response.status()
+        );
+
+        let data: common::KeyListResponse =
+            response.json().expect("Failed to parse keys response JSON");
+
+        assert!(
+            !data.results.is_empty(),
+            "Expected at least one key in results"
+        );
+    }
+
+    // Verify the /indexes endpoint returns a valid response with the expected shape.
+    // We cannot assert specific values (e.g. empty results) because test execution
+    // order is not guaranteed — another test may have already created indexes.
+    #[test]
+    fn get_indexes() {
+        let ctx = common::TestContext::new();
+
+        let response = ctx
+            .get("/indexes")
+            .send()
+            .expect("Failed to send get indexes request");
+
+        assert_eq!(
+            response.status(),
+            200,
+            "Get indexes failed with status {}",
+            response.status()
+        );
+
+        let data: common::IndexListResponse = response
+            .json()
+            .expect("Failed to parse indexes response JSON");
+
+        assert_eq!(data.offset, 0, "Expected offset to be 0");
+        assert!(data.limit > 0, "Expected limit to be greater than 0");
+    }
+}
+
+// Polling Wrapper tests if the POST endpoint is correctly wrapped with a POST/GET polling mechanism.
+// The proxy should handle polling internally and return the completed task response directly.
+mod polling_wrapper {
+    use super::common;
+
+    #[test]
+    fn seed_and_verify_documents() {
+        let ctx = common::TestContext::new();
+        let csv_data = include_bytes!("fixtures/movies.csv");
+
+        let response = ctx
+            .post("/indexes/movies/documents?primaryKey=id")
+            .header("Content-Type", "text/csv")
+            .body(csv_data.as_slice())
+            .send()
+            .expect("Failed to send seed request");
+
+        assert_eq!(
+            response.status(),
+            200,
+            "Seed request failed with status {}",
+            response.status()
+        );
+
+        let task: common::TaskResponse =
+            response.json().expect("Failed to parse task response JSON");
+
+        // The proxy should have waited for the task to complete.
+        // Should NOT return an enqueued response.
+        assert_eq!(
+            task.status, "succeeded",
+            "Expected proxy to return completed task, got '{}'. If 'enqueued', the proxy is not polling.",
+            task.status
+        );
+        assert_eq!(task.details.received_documents, 31944);
+        assert_eq!(task.details.indexed_documents, 31944);
+
+        // Verify the index was created
+        let response = ctx
+            .get("/indexes")
+            .send()
+            .expect("Failed to send get indexes request");
+
+        assert_eq!(response.status(), 200);
+
+        let data: common::IndexListResponse = response
+            .json()
+            .expect("Failed to parse indexes response JSON");
+
+        assert_eq!(data.total, 1);
+        assert_eq!(data.results.len(), 1);
+        assert_eq!(data.results[0].uid, "movies");
+        assert_eq!(data.results[0].primary_key, "id");
+
+        // Verify task list
+        let response = ctx
+            .get("/tasks")
+            .send()
+            .expect("Failed to send get tasks request");
+
+        assert_eq!(response.status(), 200);
+
+        let data: common::TaskListResponse = response
+            .json()
+            .expect("Failed to parse tasks response JSON");
+
+        assert!(!data.results.is_empty(), "Expected at least one task");
+
+        let task = &data.results[0];
+        assert_eq!(task.index_uid, "movies");
+        assert_eq!(task.status, "succeeded");
+        assert_eq!(task.task_type, "documentAdditionOrUpdate");
+        assert!(task.canceled_by.is_null(), "Expected canceledBy to be null");
+        assert!(task.error.is_null(), "Expected error to be null");
+        assert_eq!(task.details.received_documents, 31944);
+        assert_eq!(task.details.indexed_documents, 31944);
+    }
+}
