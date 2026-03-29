@@ -18,7 +18,7 @@ RUN apk add --no-cache curl && \
       arm64) RUST_TARGET="aarch64-unknown-linux-musl" ;; \
     esac && \
     curl -fsSL -o /wrapper \
-      "https://github.com/alchemaxinc/meilisearch-lambda-wrapper/releases/download/v${WRAPPER_VERSION}/meilisearch-lambda-wrapper-${RUST_TARGET}" && \
+      "https://github.com/alchemaxinc/meilisearch-lambda-wrapper/releases/download/v${WRAPPER_VERSION}/wrapper-${RUST_TARGET}" && \
     chmod +x /wrapper
 
 FROM getmeili/meilisearch:v1.39.0
@@ -39,6 +39,6 @@ docker build --build-arg WRAPPER_VERSION=1.2.3 .
 Each release includes `.sha256` files per binary:
 
 ```sh
-curl -fsSL -O https://github.com/alchemaxinc/meilisearch-lambda-wrapper/releases/download/v1.2.3/meilisearch-lambda-wrapper-x86_64-unknown-linux-musl{,.sha256}
-sha256sum -c meilisearch-lambda-wrapper-x86_64-unknown-linux-musl.sha256
+curl -fsSL -O https://github.com/alchemaxinc/meilisearch-lambda-wrapper/releases/download/v1.2.3/wrapper-x86_64-unknown-linux-musl{,.sha256}
+sha256sum -c wrapper-x86_64-unknown-linux-musl.sha256
 ```

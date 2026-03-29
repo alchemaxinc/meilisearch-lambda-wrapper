@@ -68,7 +68,7 @@ jobs:
       - name: Generate checksum
         run: |
           cd wrapper/target/${{ matrix.target }}/release
-          sha256sum meilisearch-lambda-wrapper > meilisearch-lambda-wrapper-${{ matrix.target }}.sha256
+          sha256sum wrapper > wrapper-${{ matrix.target }}.sha256
 
       - name: Upload release assets
         env:
@@ -76,5 +76,5 @@ jobs:
           TAG: ${{ github.event.release.tag_name || inputs.tag_name }}
         run: |
           gh release upload "$TAG" \
-            "wrapper/target/${{ matrix.target }}/release/meilisearch-lambda-wrapper#meilisearch-lambda-wrapper-${{ matrix.target }}" \
-            "wrapper/target/${{ matrix.target }}/release/meilisearch-lambda-wrapper-${{ matrix.target }}.sha256"
+            "wrapper/target/${{ matrix.target }}/release/wrapper#wrapper-${{ matrix.target }}" \
+            "wrapper/target/${{ matrix.target }}/release/wrapper-${{ matrix.target }}.sha256"
