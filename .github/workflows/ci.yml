@@ -116,7 +116,7 @@ jobs:
       - name: Run Prettier
         run: npx prettier --check .
 
-  run-tests:
+  test-unit:
     runs-on: ubuntu-latest
     needs: lint-rust
     steps:
@@ -140,7 +140,7 @@ jobs:
 
   test-integration:
     runs-on: ubuntu-latest
-    needs: [lint-rust, lint-prettier, run-commitlint]
+    needs: [lint-rust, lint-prettier, run-commitlint, test-unit]
     steps:
       - *checkout-code
       - *install-rust
