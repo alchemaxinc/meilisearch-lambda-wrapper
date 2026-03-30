@@ -1,6 +1,8 @@
-use reqwest::{blocking, header};
-use serde::Deserialize;
 use std::env;
+
+use reqwest::blocking;
+use reqwest::header;
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct TaskDetails {
@@ -66,14 +68,10 @@ impl TestContext {
         // Since running this locally, you want to use `localhost`, but in a docker-compose'd network,
         // we need to overwrite it with the docker container's hostname.
         let host = env::var("MEILI_HOST").unwrap_or_else(|_| return "localhost".to_string());
-        let master_key =
-            env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY environment variable is not set");
+        let master_key = env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY environment variable is not set");
 
         let mut headers = header::HeaderMap::new();
-        headers.insert(
-            "Authorization",
-            format!("Bearer {master_key}").parse().unwrap(),
-        );
+        headers.insert("Authorization", format!("Bearer {master_key}").parse().unwrap());
 
         return Self {
             client: blocking::Client::new(),

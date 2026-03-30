@@ -43,10 +43,10 @@ lint: ## Run linter
 		--manifest-path $(WRAPPER_MANIFEST) \
 		--all-targets \
 		-- -D warnings
-	cargo fmt \
+	cargo +nightly fmt \
 		--manifest-path $(SYNC_VERSIONS_MANIFEST) \
 		-- --check
-	cargo fmt \
+	cargo +nightly fmt \
 		--manifest-path $(WRAPPER_MANIFEST) \
 		-- --check
 	npx prettier --check .
@@ -61,9 +61,9 @@ format: ## Format files
 		--manifest-path $(WRAPPER_MANIFEST) \
 		--all-targets \
 		--fix --allow-dirty
-	cargo fmt \
+	cargo +nightly fmt \
 		--manifest-path $(SYNC_VERSIONS_MANIFEST)
-	cargo fmt \
+	cargo +nightly fmt \
 		--manifest-path $(WRAPPER_MANIFEST)
 	npx prettier --write .
 

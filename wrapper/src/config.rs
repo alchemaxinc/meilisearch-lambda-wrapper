@@ -24,27 +24,25 @@ pub const MEILISEARCH_HOST: &str = "http://localhost:7700";
 /// minus 1 second of headroom for cleanup.
 ///
 /// Env: `AWS_LAMBDA_TIMEOUT_SECONDS` (default: 300)
-pub static MAX_WAIT_TIME: std::sync::LazyLock<std::time::Duration> =
-    std::sync::LazyLock::new(|| {
-        let timeout: u64 = std::env::var("AWS_LAMBDA_TIMEOUT_SECONDS")
-            .unwrap_or_else(|_| return "300".to_string())
-            .parse()
-            .expect("AWS_LAMBDA_TIMEOUT_SECONDS must be a number");
-        return std::time::Duration::from_secs(timeout - 1);
-    });
+pub static MAX_WAIT_TIME: std::sync::LazyLock<std::time::Duration> = std::sync::LazyLock::new(|| {
+    let timeout: u64 = std::env::var("AWS_LAMBDA_TIMEOUT_SECONDS")
+        .unwrap_or_else(|_| return "300".to_string())
+        .parse()
+        .expect("AWS_LAMBDA_TIMEOUT_SECONDS must be a number");
+    return std::time::Duration::from_secs(timeout - 1);
+});
 
 /// How often to poll Meilisearch's `/tasks` endpoint when waiting for an async
 /// operation to complete. Lower values give faster responses but more CPU usage.
 ///
 /// Env: `MEILISEARCH_POLL_INTERVAL_MS` (default: 100)
-pub static POLL_INTERVAL: std::sync::LazyLock<std::time::Duration> =
-    std::sync::LazyLock::new(|| {
-        let ms: u64 = std::env::var("MEILISEARCH_POLL_INTERVAL_MS")
-            .unwrap_or_else(|_| return "100".to_string())
-            .parse()
-            .expect("MEILISEARCH_POLL_INTERVAL_MS must be a number");
-        return std::time::Duration::from_millis(ms);
-    });
+pub static POLL_INTERVAL: std::sync::LazyLock<std::time::Duration> = std::sync::LazyLock::new(|| {
+    let ms: u64 = std::env::var("MEILISEARCH_POLL_INTERVAL_MS")
+        .unwrap_or_else(|_| return "100".to_string())
+        .parse()
+        .expect("MEILISEARCH_POLL_INTERVAL_MS must be a number");
+    return std::time::Duration::from_millis(ms);
+});
 
 /// Maximum allowed size of an incoming request body. Prevents a large payload from
 /// exhausting Lambda memory. Should be set to a fraction of the Lambda's configured
