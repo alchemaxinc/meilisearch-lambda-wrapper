@@ -12,8 +12,5 @@ fn test_get_latest_meilisearch_version_returns_tag() {
     let stdout = String::from_utf8(output.stdout).expect("invalid UTF-8");
     let tag = stdout.trim();
 
-    assert!(
-        tag.starts_with("v"),
-        "expected tag starting with 'v', got: {tag}"
-    );
+    assert!(tag.starts_with("v"), "expected tag starting with 'v', got: {tag}");
 }

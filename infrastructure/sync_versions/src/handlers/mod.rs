@@ -4,15 +4,13 @@ mod get_latest_meilisearch_version;
 
 type Handler = fn() -> Result<String, Box<dyn error::Error>>;
 
-pub const HANDLERS: &[(&str, Handler)] = &[(
-    "get-latest-meilisearch-version",
-    get_latest_meilisearch_version::handle,
-)];
+pub const HANDLERS: &[(&str, Handler)] = &[("get-latest-meilisearch-version", get_latest_meilisearch_version::handle)];
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::collections;
+
+    use super::*;
 
     #[test]
     fn test_all_handlers_have_unique_names() {

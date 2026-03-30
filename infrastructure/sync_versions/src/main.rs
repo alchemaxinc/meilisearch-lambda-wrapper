@@ -1,16 +1,14 @@
 mod handlers;
 
-use std::{env, process};
+use std::env;
+use std::process;
 
 fn main() {
     env_logger::init();
 
     let verb = parse_verb();
 
-    let Some((_, handler)) = handlers::HANDLERS
-        .iter()
-        .find(|(name, _)| return *name == verb)
-    else {
+    let Some((_, handler)) = handlers::HANDLERS.iter().find(|(name, _)| return *name == verb) else {
         eprintln!("Unknown verb: {verb}");
         eprintln!("Available verbs:");
         for (name, _) in handlers::HANDLERS {

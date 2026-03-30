@@ -12,10 +12,7 @@ mod proxy_forwarding {
     fn get_keys() {
         let ctx = common::TestContext::new();
 
-        let response = ctx
-            .get("/keys")
-            .send()
-            .expect("Failed to send get keys request");
+        let response = ctx.get("/keys").send().expect("Failed to send get keys request");
 
         assert_eq!(
             response.status(),
@@ -24,13 +21,9 @@ mod proxy_forwarding {
             response.status()
         );
 
-        let data: common::KeyListResponse =
-            response.json().expect("Failed to parse keys response JSON");
+        let data: common::KeyListResponse = response.json().expect("Failed to parse keys response JSON");
 
-        assert!(
-            !data.results.is_empty(),
-            "Expected at least one key in results"
-        );
+        assert!(!data.results.is_empty(), "Expected at least one key in results");
     }
 
     // Verify the /indexes endpoint returns a valid response with the expected shape.
@@ -40,10 +33,7 @@ mod proxy_forwarding {
     fn get_indexes() {
         let ctx = common::TestContext::new();
 
-        let response = ctx
-            .get("/indexes")
-            .send()
-            .expect("Failed to send get indexes request");
+        let response = ctx.get("/indexes").send().expect("Failed to send get indexes request");
 
         assert_eq!(
             response.status(),
@@ -52,9 +42,7 @@ mod proxy_forwarding {
             response.status()
         );
 
-        let data: common::IndexListResponse = response
-            .json()
-            .expect("Failed to parse indexes response JSON");
+        let data: common::IndexListResponse = response.json().expect("Failed to parse indexes response JSON");
 
         assert_eq!(data.offset, 0, "Expected offset to be 0");
         assert!(data.limit > 0, "Expected limit to be greater than 0");
@@ -85,8 +73,7 @@ mod polling_wrapper {
             response.status()
         );
 
-        let task: common::TaskResponse =
-            response.json().expect("Failed to parse task response JSON");
+        let task: common::TaskResponse = response.json().expect("Failed to parse task response JSON");
 
         // The proxy should have waited for the task to complete.
         // Should NOT return an enqueued response.
@@ -99,16 +86,11 @@ mod polling_wrapper {
         assert_eq!(task.details.indexed_documents, 31944);
 
         // Verify the index was created
-        let response = ctx
-            .get("/indexes")
-            .send()
-            .expect("Failed to send get indexes request");
+        let response = ctx.get("/indexes").send().expect("Failed to send get indexes request");
 
         assert_eq!(response.status(), 200);
 
-        let data: common::IndexListResponse = response
-            .json()
-            .expect("Failed to parse indexes response JSON");
+        let data: common::IndexListResponse = response.json().expect("Failed to parse indexes response JSON");
 
         assert_eq!(data.total, 1);
         assert_eq!(data.results.len(), 1);
@@ -116,16 +98,11 @@ mod polling_wrapper {
         assert_eq!(data.results[0].primary_key, "id");
 
         // Verify task list
-        let response = ctx
-            .get("/tasks")
-            .send()
-            .expect("Failed to send get tasks request");
+        let response = ctx.get("/tasks").send().expect("Failed to send get tasks request");
 
         assert_eq!(response.status(), 200);
 
-        let data: common::TaskListResponse = response
-            .json()
-            .expect("Failed to parse tasks response JSON");
+        let data: common::TaskListResponse = response.json().expect("Failed to parse tasks response JSON");
 
         assert!(!data.results.is_empty(), "Expected at least one task");
 

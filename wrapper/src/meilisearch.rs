@@ -14,10 +14,7 @@ const MEILISEARCH_BINARY_NAME: &str = "meilisearch";
 impl Meilisearch {
     /// Spawns the Meilisearch binary and wires up log forwarding for stdout/stderr.
     pub fn start() -> Result<Self, Box<dyn std::error::Error>> {
-        tracing::info!(
-            host = crate::config::MEILISEARCH_HOST,
-            "starting meilisearch"
-        );
+        tracing::info!(host = crate::config::MEILISEARCH_HOST, "starting meilisearch");
 
         let mut child = std::process::Command::new(MEILISEARCH_BINARY_NAME)
             .stdout(std::process::Stdio::piped())

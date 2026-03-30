@@ -1,7 +1,10 @@
-use log::{debug, error, info};
+use std::error;
+
+use log::debug;
+use log::error;
+use log::info;
 use reqwest::blocking;
 use serde::Deserialize;
-use std::error;
 
 #[derive(Debug, Deserialize)]
 struct Tag {
@@ -16,11 +19,7 @@ pub fn handle() -> Result<String, Box<dyn error::Error>> {
     let client = blocking::Client::new();
 
     debug!("Fetching tags from {}", TAGS_URL);
-    let response: Vec<Tag> = client
-        .get(TAGS_URL)
-        .header("User-Agent", USER_AGENT)
-        .send()?
-        .json()?;
+    let response: Vec<Tag> = client.get(TAGS_URL).header("User-Agent", USER_AGENT).send()?.json()?;
 
     debug!("Fetched {} tags", response.len());
     if response.is_empty() {

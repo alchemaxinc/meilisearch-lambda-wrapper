@@ -86,11 +86,7 @@ impl Proxy {
     /// Polls Meilisearch's `/tasks/{uid}` endpoint until the task reaches a
     /// terminal state (`succeeded`, `failed`, or `canceled`) or the timeout
     /// expires. Returns the final task JSON body on success.
-    async fn wait_for_task(
-        &self,
-        task_uid: u64,
-        headers: &reqwest::header::HeaderMap,
-    ) -> Result<bytes::Bytes, String> {
+    async fn wait_for_task(&self, task_uid: u64, headers: &reqwest::header::HeaderMap) -> Result<bytes::Bytes, String> {
         let url = format!("{}/tasks/{}", config::MEILISEARCH_HOST, task_uid);
         let timeout_at = std::time::Instant::now() + *config::MAX_WAIT_TIME;
         let poll_interval = *config::POLL_INTERVAL;
@@ -114,8 +110,8 @@ impl Proxy {
                         return Err(format!("error fetching task {}: {}", task_uid, status_code));
                     }
 
-                    let task: TaskStatus = serde_json::from_slice(&body)
-                        .map_err(|e| format!("failed to parse task response: {}", e))?;
+                    let task: TaskStatus =
+                        serde_json::from_slice(&body).map_err(|e| format!("failed to parse task response: {}", e))?;
 
                     tracing::debug!(task_uid = task_uid, status = %task.status, "task poll");
                     match task.status.as_str() {
@@ -124,10 +120,7 @@ impl Proxy {
                             return Ok(body);
                         }
                         "failed" | "canceled" => {
-                            return Err(format!(
-                                "task {} terminal state: {}",
-                                task_uid, task.status
-                            ));
+                            return Err(format!("task {} terminal state: {}", task_uid, task.status));
                         }
                         _ => {} // still processing
                     }
