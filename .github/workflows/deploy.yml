@@ -14,9 +14,6 @@ permissions:
   id-token: write
   pull-requests: write
 
-env:
-  RUST_TOOLCHAIN: "1.94.0"
-
 jobs:
   semantic-release:
     name: Semantic Versioning and Release
@@ -104,7 +101,6 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           targets: ${{ matrix.target }}
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
 
       - name: Install musl tools
         run: sudo apt-get update && sudo apt-get install -y musl-tools
@@ -116,8 +112,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             wrapper/target
-          key: v1-release-${{ matrix.target }}-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('wrapper/Cargo.lock') }}
-          restore-keys: v1-release-${{ matrix.target }}-${{ env.RUST_TOOLCHAIN }}-
+          key: v2-release-${{ matrix.target }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('wrapper/Cargo.lock') }}
+          restore-keys: v2-release-${{ matrix.target }}-${{ hashFiles('rust-toolchain.toml') }}-
 
       - name: Build binary
         run: cargo build --manifest-path wrapper/Cargo.toml --release --target ${{ matrix.target }}

@@ -12,7 +12,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RUST_TOOLCHAIN: "1.94.0"
   PRETTIER_VERSION: "3.3.3"
   COMMITLINT_CLI_VERSION: "20.2.0"
 
@@ -91,7 +90,6 @@ jobs:
         name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: clippy, rustfmt
 
       - name: Cache Cargo dependencies
@@ -101,8 +99,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ${{ matrix.target }}
-          key: v1-cargo-${{ matrix.name }}-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles(matrix.lockfile) }}
-          restore-keys: v1-cargo-${{ matrix.name }}-${{ env.RUST_TOOLCHAIN }}-
+          key: v2-cargo-${{ matrix.name }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles(matrix.lockfile) }}
+          restore-keys: v2-cargo-${{ matrix.name }}-${{ hashFiles('rust-toolchain.toml') }}-
 
       - name: Run clippy
         run: cargo clippy --manifest-path ${{ matrix.manifest }} --all-targets -- -D warnings
@@ -136,8 +134,8 @@ jobs:
             ~/.cargo/git
             infrastructure/sync_versions/target
             wrapper/target
-          key: v1-cargo-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: v1-cargo-${{ env.RUST_TOOLCHAIN }}-
+          key: v2-cargo-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: v2-cargo-${{ hashFiles('rust-toolchain.toml') }}-
 
       - name: Run unit tests
         run: make test-unit
