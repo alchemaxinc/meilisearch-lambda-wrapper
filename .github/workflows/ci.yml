@@ -152,6 +152,7 @@ jobs:
   test-integration:
     runs-on: ubuntu-latest
     needs: [lint-rust, lint-prettier, run-commitlint, test-unit]
+    if: "!startsWith(github.event.head_commit.message, 'chore') && github.ref != 'refs/heads/main'"
     steps:
       - *checkout-code
       - *read-rust-version
@@ -190,3 +191,25 @@ jobs:
       - name: Cleanup
         if: always()
         run: docker compose -f wrapper/tests/docker-compose.yml down
+
+  ci-passed:
+    name: CI Passed
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [lint-rust, run-commitlint, test-unit, test-integration]
+    steps:
+      - name: Verify all jobs passed or were skipped
+        run: |
+          results=(
+            "${{ needs.lint-rust.result }}"
+            "${{ needs.run-commitlint.result }}"
+            "${{ needs.test-unit.result }}"
+            "${{ needs.test-integration.result }}"
+          )
+          for result in "${results[@]}"; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              echo "Job failed or was cancelled: $result"
+              exit 1
+            fi
+          done
+          echo "All jobs passed or were skipped"
