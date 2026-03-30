@@ -86,10 +86,16 @@ jobs:
     steps:
       - *checkout-code
 
+      - &read-rust-version
+        name: Read Rust toolchain version
+        id: rust-version
+        run: echo "version=$(grep '^channel' rust-toolchain.toml | sed 's/.*"\(.*\)".*/\1/')" >> "$GITHUB_OUTPUT"
+
       - &install-rust
         name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ steps.rust-version.outputs.version }}
           components: clippy, rustfmt
 
       - name: Cache Cargo dependencies
@@ -99,8 +105,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ${{ matrix.target }}
-          key: v2-cargo-${{ matrix.name }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles(matrix.lockfile) }}
-          restore-keys: v2-cargo-${{ matrix.name }}-${{ hashFiles('rust-toolchain.toml') }}-
+          key: v1-cargo-${{ matrix.name }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles(matrix.lockfile) }}
+          restore-keys: v1-cargo-${{ matrix.name }}-${{ hashFiles('rust-toolchain.toml') }}-
 
       - name: Run clippy
         run: cargo clippy --manifest-path ${{ matrix.manifest }} --all-targets -- -D warnings
@@ -123,6 +129,7 @@ jobs:
     needs: lint-rust
     steps:
       - *checkout-code
+      - *read-rust-version
       - *install-rust
 
       - &cache-cargo
@@ -134,8 +141,8 @@ jobs:
             ~/.cargo/git
             infrastructure/sync_versions/target
             wrapper/target
-          key: v2-cargo-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: v2-cargo-${{ hashFiles('rust-toolchain.toml') }}-
+          key: v1-cargo-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: v1-cargo-${{ hashFiles('rust-toolchain.toml') }}-
 
       - name: Run unit tests
         run: make test-unit
@@ -145,6 +152,7 @@ jobs:
     needs: [lint-rust, lint-prettier, run-commitlint, test-unit]
     steps:
       - *checkout-code
+      - *read-rust-version
       - *install-rust
       - *cache-cargo
 

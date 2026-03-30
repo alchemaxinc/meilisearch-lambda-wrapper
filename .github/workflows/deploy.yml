@@ -97,9 +97,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Read Rust toolchain version
+        id: rust-version
+        run: echo "version=$(grep '^channel' rust-toolchain.toml | sed 's/.*"\(.*\)".*/\1/')" >> "$GITHUB_OUTPUT"
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ steps.rust-version.outputs.version }}
           targets: ${{ matrix.target }}
 
       - name: Install musl tools
@@ -112,8 +117,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             wrapper/target
-          key: v2-release-${{ matrix.target }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('wrapper/Cargo.lock') }}
-          restore-keys: v2-release-${{ matrix.target }}-${{ hashFiles('rust-toolchain.toml') }}-
+          key: v1-release-${{ matrix.target }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('wrapper/Cargo.lock') }}
+          restore-keys: v1-release-${{ matrix.target }}-${{ hashFiles('rust-toolchain.toml') }}-
 
       - name: Build binary
         run: cargo build --manifest-path wrapper/Cargo.toml --release --target ${{ matrix.target }}

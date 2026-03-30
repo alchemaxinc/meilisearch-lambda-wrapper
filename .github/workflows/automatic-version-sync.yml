@@ -43,8 +43,14 @@ jobs:
     steps:
       - *checkout-code
 
+      - name: Read Rust toolchain version
+        id: rust-version
+        run: echo "version=$(grep '^channel' rust-toolchain.toml | sed 's/.*"\(.*\)".*/\1/')" >> "$GITHUB_OUTPUT"
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.rust-version.outputs.version }}
 
       - name: Cache Cargo dependencies
         uses: actions/cache@v5
@@ -53,8 +59,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             infrastructure/sync_versions/target
-          key: v2-cargo-sync-versions-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('infrastructure/sync_versions/Cargo.lock') }}
-          restore-keys: v2-cargo-sync-versions-${{ hashFiles('rust-toolchain.toml') }}-
+          key: v1-cargo-sync-versions-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('infrastructure/sync_versions/Cargo.lock') }}
+          restore-keys: v1-cargo-sync-versions-${{ hashFiles('rust-toolchain.toml') }}-
 
       - name: Build sync_versions
         run: |
