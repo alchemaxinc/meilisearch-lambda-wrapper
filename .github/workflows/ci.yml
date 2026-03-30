@@ -142,7 +142,9 @@ jobs:
             infrastructure/sync_versions/target
             wrapper/target
           key: v1-cargo-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: v1-cargo-${{ hashFiles('rust-toolchain.toml') }}-
+          restore-keys: |
+            v1-cargo-${{ hashFiles('rust-toolchain.toml') }}-
+            v1-cargo-wrapper-${{ hashFiles('rust-toolchain.toml') }}-
 
       - name: Run unit tests
         run: make test-unit
