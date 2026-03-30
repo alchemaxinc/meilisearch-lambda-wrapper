@@ -79,14 +79,14 @@ jobs:
     name: Build ${{ matrix.target }}
     needs: semantic-release
     if: needs.semantic-release.outputs.tag != ''
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
         include:
           - target: x86_64-unknown-linux-musl
-            packages: musl-tools
+            runner: ubuntu-24.04
           - target: aarch64-unknown-linux-musl
-            packages: musl-tools
+            runner: ubuntu-24.04-arm
 
     steps:
       - name: Create temporary GitHub App Token
@@ -106,26 +106,8 @@ jobs:
           targets: ${{ matrix.target }}
           toolchain: ${{ env.RUST_TOOLCHAIN }}
 
-      - name: Install build dependencies
-        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.packages }}
-
-      - name: Cache aarch64 musl cross-compiler
-        if: matrix.target == 'aarch64-unknown-linux-musl'
-        id: cache-musl
-        uses: actions/cache@v5
-        with:
-          path: /opt/aarch64-linux-musl-cross
-          key: aarch64-linux-musl-cross-v1
-
-      - name: Install aarch64 musl cross-compiler
-        if: matrix.target == 'aarch64-unknown-linux-musl' && steps.cache-musl.outputs.cache-hit != 'true'
-        run: |
-          curl -Lo /tmp/aarch64-linux-musl-cross.tgz https://musl.cc/aarch64-linux-musl-cross.tgz
-          tar xzf /tmp/aarch64-linux-musl-cross.tgz -C /opt
-
-      - name: Add aarch64 musl cross-compiler to PATH
-        if: matrix.target == 'aarch64-unknown-linux-musl'
-        run: echo "/opt/aarch64-linux-musl-cross/bin" >> "$GITHUB_PATH"
+      - name: Install musl tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
 
       - name: Cache Cargo dependencies
         uses: actions/cache@v5
@@ -139,9 +121,6 @@ jobs:
 
       - name: Build binary
         run: cargo build --manifest-path wrapper/Cargo.toml --release --target ${{ matrix.target }}
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: aarch64-linux-musl-gcc
-          CC_aarch64_unknown_linux_musl: aarch64-linux-musl-gcc
 
       - name: Generate checksum
         run: |
