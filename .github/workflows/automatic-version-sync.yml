@@ -9,9 +9,6 @@ permissions:
   contents: write
   pull-requests: write
 
-env:
-  RUST_TOOLCHAIN: "1.94.0"
-
 jobs:
   get-current-local-meilisearch-docker-version:
     runs-on: ubuntu-latest
@@ -46,10 +43,14 @@ jobs:
     steps:
       - *checkout-code
 
+      - name: Read Rust toolchain version
+        id: rust-version
+        run: echo "version=$(grep '^channel' rust-toolchain.toml | sed 's/.*"\(.*\)".*/\1/')" >> "$GITHUB_OUTPUT"
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          toolchain: ${{ steps.rust-version.outputs.version }}
 
       - name: Cache Cargo dependencies
         uses: actions/cache@v5
@@ -58,8 +59,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             infrastructure/sync_versions/target
-          key: v1-cargo-sync-versions-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('infrastructure/sync_versions/Cargo.lock') }}
-          restore-keys: v1-cargo-sync-versions-${{ env.RUST_TOOLCHAIN }}-
+          key: v1-cargo-sync-versions-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('infrastructure/sync_versions/Cargo.lock') }}
+          restore-keys: v1-cargo-sync-versions-${{ hashFiles('rust-toolchain.toml') }}-
 
       - name: Build sync_versions
         run: |
