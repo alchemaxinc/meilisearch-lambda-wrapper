@@ -122,10 +122,11 @@ jobs:
       - name: Build binary
         run: cargo build --manifest-path wrapper/Cargo.toml --release --target ${{ matrix.target }}
 
-      - name: Generate checksum
+      - name: Rename binary and generate checksum
         run: |
           cd wrapper/target/${{ matrix.target }}/release
-          sha256sum wrapper > wrapper-${{ matrix.target }}.sha256
+          mv wrapper wrapper-${{ matrix.target }}
+          sha256sum wrapper-${{ matrix.target }} > wrapper-${{ matrix.target }}.sha256
 
       - name: Upload release assets
         env:
@@ -133,7 +134,7 @@ jobs:
           TAG: ${{ needs.semantic-release.outputs.tag }}
         run: |
           gh release upload "$TAG" \
-            "wrapper/target/${{ matrix.target }}/release/wrapper#wrapper-${{ matrix.target }}" \
+            "wrapper/target/${{ matrix.target }}/release/wrapper-${{ matrix.target }}" \
             "wrapper/target/${{ matrix.target }}/release/wrapper-${{ matrix.target }}.sha256"
 
   publish-release:
