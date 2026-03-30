@@ -1,11 +1,11 @@
 name: Release Binary
 
 on:
-  release:
-    # "created" (not "published") because semantic-release creates draft releases
-    # (see .releaserc.json). Drafts only emit the "created" event. The
-    # publish-release job below promotes the draft after binaries are uploaded.
-    types: [created]
+  workflow_call:
+    inputs:
+      tag_name:
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       tag_name:
@@ -76,7 +76,7 @@ jobs:
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
-          TAG: ${{ github.event.release.tag_name || inputs.tag_name }}
+          TAG: ${{ inputs.tag_name }}
         run: |
           gh release upload "$TAG" \
             "wrapper/target/${{ matrix.target }}/release/wrapper#wrapper-${{ matrix.target }}" \
@@ -87,7 +87,7 @@ jobs:
   publish-release:
     name: Publish release
     needs: build-and-upload
-    if: github.event_name == 'release'
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Create temporary GitHub App Token
@@ -101,4 +101,5 @@ jobs:
       - name: Publish release
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
-        run: gh release edit "${{ github.event.release.tag_name }}" --repo "${{ github.repository }}" --draft=false
+          TAG: ${{ inputs.tag_name }}
+        run: gh release edit "$TAG" --repo "${{ github.repository }}" --draft=false

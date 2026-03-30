@@ -19,6 +19,8 @@ jobs:
     name: Semantic Versioning and Release
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      tag: ${{ steps.version-release.outputs.tag }}
 
     steps:
       - name: Create temporary GitHub App Token
@@ -35,6 +37,7 @@ jobs:
           token: ${{ steps.app.outputs.token }}
 
       - name: Version and release
+        id: version-release
         uses: alchemaxinc/composite-toolbox/semantic-release@v1
         with:
           token: ${{ steps.app.outputs.token }}
@@ -68,3 +71,12 @@ jobs:
           token: ${{ steps.app.outputs.token }}
           merge-method: "merge"
           pull-request-number: ${{ steps.open-pr.outputs.pr_number }}
+
+  release-binary:
+    name: Release Binary
+    needs: semantic-release
+    if: needs.semantic-release.outputs.tag != ''
+    uses: ./.github/workflows/release-binary.yml
+    with:
+      tag_name: ${{ needs.semantic-release.outputs.tag }}
+    secrets: inherit
