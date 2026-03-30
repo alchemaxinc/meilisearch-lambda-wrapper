@@ -14,6 +14,9 @@ permissions:
   id-token: write
   pull-requests: write
 
+env:
+  RUST_TOOLCHAIN: "1.94.0"
+
 jobs:
   semantic-release:
     name: Semantic Versioning and Release
@@ -72,11 +75,84 @@ jobs:
           merge-method: "merge"
           pull-request-number: ${{ steps.open-pr.outputs.pr_number }}
 
-  release-binary:
-    name: Release Binary
+  build-and-upload:
+    name: Build ${{ matrix.target }}
     needs: semantic-release
     if: needs.semantic-release.outputs.tag != ''
-    uses: ./.github/workflows/release-binary.yml
-    with:
-      tag_name: ${{ needs.semantic-release.outputs.tag }}
-    secrets: inherit
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            packages: musl-tools
+          - target: aarch64-unknown-linux-musl
+            packages: musl-tools gcc-aarch64-linux-gnu
+
+    steps:
+      - name: Create temporary GitHub App Token
+        id: app
+        uses: actions/create-github-app-token@v3
+        with:
+          owner: ${{ github.repository_owner }}
+          app-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
+          private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          targets: ${{ matrix.target }}
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.packages }}
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            wrapper/target
+          key: v1-release-${{ matrix.target }}-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('wrapper/Cargo.lock') }}
+          restore-keys: v1-release-${{ matrix.target }}-${{ env.RUST_TOOLCHAIN }}-
+
+      - name: Build binary
+        run: cargo build --manifest-path wrapper/Cargo.toml --release --target ${{ matrix.target }}
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: aarch64-linux-gnu-gcc
+
+      - name: Generate checksum
+        run: |
+          cd wrapper/target/${{ matrix.target }}/release
+          sha256sum wrapper > wrapper-${{ matrix.target }}.sha256
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          TAG: ${{ needs.semantic-release.outputs.tag }}
+        run: |
+          gh release upload "$TAG" \
+            "wrapper/target/${{ matrix.target }}/release/wrapper#wrapper-${{ matrix.target }}" \
+            "wrapper/target/${{ matrix.target }}/release/wrapper-${{ matrix.target }}.sha256"
+
+  publish-release:
+    name: Publish release
+    needs: [semantic-release, build-and-upload]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create temporary GitHub App Token
+        id: app
+        uses: actions/create-github-app-token@v3
+        with:
+          owner: ${{ github.repository_owner }}
+          app-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
+          private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          TAG: ${{ needs.semantic-release.outputs.tag }}
+        run: gh release edit "$TAG" --repo "${{ github.repository }}" --draft=false
