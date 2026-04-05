@@ -11,7 +11,8 @@ DOCKER_IMAGE_TAG?=abc123def
 WRAPPER_MANIFEST=wrapper/Cargo.toml
 SYNC_VERSIONS_MANIFEST=infrastructure/sync_versions/Cargo.toml
 
-# Integration test compose file
+STRESS_TEST_SCRIPT=infrastructure/stress_tests/stress-test.js
+
 INTEGRATION_COMPOSE=wrapper/tests/docker-compose.yml
 
 # Functions for reusable docker build commands
@@ -91,6 +92,15 @@ test-integration: ## Run integration tests
 		--manifest-path $(WRAPPER_MANIFEST) \
 		--features integration \
 		--test integration_test -- --test-threads=1; \
+	exit_code=$$?; \
+	docker compose -f $(INTEGRATION_COMPOSE) down; \
+	exit $$exit_code
+
+.PHONY: test-stress
+test-stress: ## Run k6 stress tests (requires k6: https://grafana.com/docs/k6/latest/set-up/install-k6/)
+	docker build -t $(DOCKER_IMAGE_NAME):test .
+	docker compose -f $(INTEGRATION_COMPOSE) up -d --wait
+	k6 run $(STRESS_TEST_SCRIPT); \
 	exit_code=$$?; \
 	docker compose -f $(INTEGRATION_COMPOSE) down; \
 	exit $$exit_code
