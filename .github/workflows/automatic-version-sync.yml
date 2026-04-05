@@ -121,13 +121,18 @@ jobs:
 
       - name: Update local Meilisearch Docker version
         id: update-version
-        run: sed -i "s/FROM getmeili\/meilisearch:${LOCAL_VERSION}/FROM getmeili\/meilisearch:${LATEST_VERSION}/g" Dockerfile
+        run: |
+          shopt -s globstar
+          sed -i "s/FROM getmeili\/meilisearch:${LOCAL_VERSION}/FROM getmeili\/meilisearch:${LATEST_VERSION}/g" \
+            Dockerfile \
+            **/*.md
+          echo "updated_files=$(git diff --name-only | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
 
       - name: Check for changes
         id: check_changes
         uses: alchemaxinc/composite-toolbox/check-changes@v1
         with:
-          files: "Dockerfile"
+          files: ${{ steps.update-version.outputs.updated_files }}
 
       - name: Create Pull Request
         id: open-pr
@@ -137,7 +142,7 @@ jobs:
           token: ${{ steps.app.outputs.token }}
           base-branch: "main"
           branch-prefix: "fix/auto/meilisearch-docker-version"
-          files: "Dockerfile"
+          files: ${{ steps.update-version.outputs.updated_files }}
           # chore: so semantic-release doesn't create a new release for
           # Dockerfile-only changes (which don't affect the wrapper binary)
           commit-message: "chore: update Meilisearch Docker version to ${{ needs.get-newest-meilisearch-docker-version.outputs.latest_version }}"
