@@ -24,6 +24,6 @@ FROM getmeili/meilisearch:v1.41.0
 WORKDIR /app
 
 COPY --from=builder /build/wrapper/target/release/wrapper ./wrapper
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 /lambda-adapter /opt/extensions/lambda-adapter
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:1.0.0 /lambda-adapter /opt/extensions/lambda-adapter
 
 ENTRYPOINT ["/app/wrapper"]

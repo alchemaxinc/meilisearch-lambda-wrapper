@@ -7,6 +7,7 @@
 //! - OPTIONS requests return an empty 200 for CORS preflight.
 
 use crate::config;
+use std::error::Error;
 
 /// Reverse proxy state shared across all request handlers.
 #[derive(Clone)]
@@ -164,7 +165,11 @@ impl Proxy {
         {
             Ok(resp) => resp,
             Err(e) => {
-                tracing::error!(error = %e, "upstream POST failed");
+                tracing::error!(
+                    error = %e,
+                    cause = ?e.source(),
+                    "upstream POST failed"
+                );
                 return axum::response::Response::builder()
                     .status(502)
                     .body(axum::body::Body::from(format!("proxy error: {}", e)))
@@ -256,7 +261,11 @@ impl Proxy {
                 return build_response(status, &headers, resp_body);
             }
             Err(e) => {
-                tracing::error!(error = %e, "upstream request failed");
+                tracing::error!(
+                    error = %e,
+                    cause = ?e.source(),
+                    "upstream request failed"
+                );
                 return axum::response::Response::builder()
                     .status(502)
                     .body(axum::body::Body::from(format!("proxy error: {}", e)))

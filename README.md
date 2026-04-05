@@ -1,6 +1,7 @@
 # Meilisearch Lambda Wrapper
 
-> Run [Meilisearch](https://www.meilisearch.com/) as a serverless full-text search engine on **AWS Lambda**, with persistent storage on **Amazon EFS**.
+> Run [Meilisearch](https://www.meilisearch.com/) as a serverless full-text search engine on **AWS Lambda**, with
+> persistent storage on **Amazon EFS**.
 
 [![GitHub Release](https://img.shields.io/github/v/release/alchemaxinc/meilisearch-lambda-wrapper)](https://github.com/alchemaxinc/meilisearch-lambda-wrapper/releases)
 
@@ -41,7 +42,7 @@ FROM getmeili/meilisearch:v1.41.0
 WORKDIR /app
 
 COPY --from=fetcher /wrapper ./wrapper
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 /lambda-adapter /opt/extensions/lambda-adapter
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:1.0.0 /lambda-adapter /opt/extensions/lambda-adapter
 
 ENTRYPOINT ["/app/wrapper"]
 ```
