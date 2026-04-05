@@ -1,7 +1,7 @@
 //! Manages the Meilisearch child process lifecycle.
 //!
-//! Starts the `meilisearch` binary as a subprocess, pipes its stdout/stderr
-//! into the structured logger, and kills it on drop.
+//! Starts the `meilisearch` binary as a subprocess, parses its JSON log
+//! output, and forwards each line at the correct log level.
 
 /// Handle to the running Meilisearch child process. Killing the process is
 /// handled automatically via the [`Drop`] implementation.
@@ -10,6 +10,67 @@ pub struct Meilisearch {
 }
 
 const MEILISEARCH_BINARY_NAME: &str = "meilisearch";
+
+#[derive(serde::Deserialize)]
+struct MeilisearchLog {
+    level: String,
+    fields: MeilisearchLogFields,
+    #[serde(default)]
+    target: String,
+}
+
+#[derive(serde::Deserialize)]
+struct MeilisearchLogFields {
+    message: String,
+    #[serde(flatten)]
+    extra: serde_json::Map<String, serde_json::Value>,
+}
+
+fn parse_log_level(level: &str) -> tracing::Level {
+    return match level {
+        "TRACE" => tracing::Level::TRACE,
+        "DEBUG" => tracing::Level::DEBUG,
+        "WARN" => tracing::Level::WARN,
+        "ERROR" => tracing::Level::ERROR,
+        _ => tracing::Level::INFO,
+    };
+}
+
+// Relies on MEILI_EXPERIMENTAL_LOGS_MODE=json, as regular tty-colored logs do not work well for
+// forwarding. This is a requirement for this wrapper to run optimally and ensure proper
+// debugging is possible.
+fn forward_line(stream: &'static str, line: &str) {
+    match serde_json::from_str::<MeilisearchLog>(line) {
+        Ok(log) => {
+            let level = parse_log_level(&log.level);
+            let details = serde_json::to_string(&log.fields.extra).unwrap_or_default();
+            match level {
+                tracing::Level::TRACE => {
+                    tracing::trace!(stream, meilisearch_target = %log.target, details = %details, "{}", log.fields.message)
+                }
+                tracing::Level::DEBUG => {
+                    tracing::debug!(stream, meilisearch_target = %log.target, details = %details, "{}", log.fields.message)
+                }
+                tracing::Level::INFO => {
+                    tracing::info!(stream, meilisearch_target = %log.target, details = %details, "{}", log.fields.message)
+                }
+                tracing::Level::WARN => {
+                    tracing::warn!(stream, meilisearch_target = %log.target, details = %details, "{}", log.fields.message)
+                }
+                tracing::Level::ERROR => {
+                    tracing::error!(stream, meilisearch_target = %log.target, details = %details, "{}", log.fields.message)
+                }
+            }
+        }
+        Err(_) => {
+            panic!(
+                "failed to parse meilisearch log line as JSON — \
+                 is MEILI_EXPERIMENTAL_LOGS_MODE=json set? \
+                 raw line: {line}"
+            );
+        }
+    }
+}
 
 impl Meilisearch {
     /// Spawns the Meilisearch binary and wires up log forwarding for stdout/stderr.
@@ -29,7 +90,7 @@ impl Meilisearch {
             let reader = std::io::BufReader::new(stdout);
             for line in std::io::BufRead::lines(reader) {
                 match line {
-                    Ok(line) => tracing::info!(stream = "stdout", "{}", line),
+                    Ok(line) => forward_line("stdout", &line),
                     Err(e) => {
                         tracing::error!(error = %e, "error reading meilisearch stdout");
                         break;
@@ -42,7 +103,7 @@ impl Meilisearch {
             let reader = std::io::BufReader::new(stderr);
             for line in std::io::BufRead::lines(reader) {
                 match line {
-                    Ok(line) => tracing::warn!(stream = "stderr", "{}", line),
+                    Ok(line) => forward_line("stderr", &line),
                     Err(e) => {
                         tracing::error!(error = %e, "error reading meilisearch stderr");
                         break;
