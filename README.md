@@ -1,6 +1,7 @@
 # Meilisearch Lambda Wrapper
 
-> Run [Meilisearch](https://www.meilisearch.com/) as a serverless full-text search engine on **AWS Lambda**, with persistent storage on **Amazon EFS**.
+> Run [Meilisearch](https://www.meilisearch.com/) as a serverless full-text search engine on **AWS Lambda**, with
+> persistent storage on **Amazon EFS**.
 
 [![GitHub Release](https://img.shields.io/github/v/release/alchemaxinc/meilisearch-lambda-wrapper)](https://github.com/alchemaxinc/meilisearch-lambda-wrapper/releases)
 
@@ -41,7 +42,7 @@ FROM getmeili/meilisearch:v1.41.0
 WORKDIR /app
 
 COPY --from=fetcher /wrapper ./wrapper
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 /lambda-adapter /opt/extensions/lambda-adapter
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:1.0.0 /lambda-adapter /opt/extensions/lambda-adapter
 
 ENTRYPOINT ["/app/wrapper"]
 ```
@@ -133,11 +134,11 @@ that runs as the container's entrypoint. On startup it:
 1. **Launches Meilisearch** as a child process (listening on `localhost:7700`)
 2. **Starts an HTTP proxy** on port `8080` (where Lambda Web Adapter forwards traffic)
 3. **Proxies all requests** to Meilisearch, with special handling for index writes:
-   - Intercepts `POST /indexes/*` requests
-   - Forwards the request to Meilisearch and captures the returned `taskUid`
-   - Polls `GET /tasks/{taskUid}` until the task reaches a terminal state (`succeeded`, `failed`,
-     or `canceled`)
-   - Returns the final task result synchronously to the caller
+    - Intercepts `POST /indexes/*` requests
+    - Forwards the request to Meilisearch and captures the returned `taskUid`
+    - Polls `GET /tasks/{taskUid}` until the task reaches a terminal state (`succeeded`, `failed`,
+      or `canceled`)
+    - Returns the final task result synchronously to the caller
 
 This means your application code doesn't need to change — just point it at the Lambda URL instead
 of a Meilisearch server and writes will behave synchronously.
@@ -157,7 +158,7 @@ of a Meilisearch server and writes will behave synchronously.
 All settings are via environment variables:
 
 | Variable                       | Default      | Description                                               |
-| ------------------------------ | ------------ | --------------------------------------------------------- |
+|--------------------------------|--------------|-----------------------------------------------------------|
 | `MEILI_MASTER_KEY`             | _(required)_ | Meilisearch master key for authentication                 |
 | `AWS_LAMBDA_TIMEOUT_SECONDS`   | `300`        | Lambda timeout; the wrapper stops polling 1 s before this |
 | `MEILISEARCH_POLL_INTERVAL_MS` | `100`        | How often to poll a task's status during a write          |
