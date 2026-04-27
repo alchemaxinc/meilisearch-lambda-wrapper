@@ -1,20 +1,24 @@
-# Meilisearch Lambda Wrapper
+# Meilisearch on AWS Lambda
 
-> Run [Meilisearch](https://www.meilisearch.com/) as a serverless full-text search engine on **AWS Lambda**, with
-> persistent storage on **Amazon EFS**.
+> Run [Meilisearch](https://www.meilisearch.com/) on **AWS Lambda** as a serverless full-text search
+> engine with **Amazon EFS**, **Lambda Web Adapter**, and synchronous writes.
 
 [![GitHub Release](https://img.shields.io/github/v/release/alchemaxinc/meilisearch-lambda-wrapper)](https://github.com/alchemaxinc/meilisearch-lambda-wrapper/releases)
 
-Meilisearch is a powerful open-source search engine, but it is designed for long-running servers.
-This project makes it possible to **self-host Meilisearch on AWS Lambda** by providing a lightweight
-Rust proxy that intercepts asynchronous index-write operations and waits for them to complete before
-returning — turning ephemeral Lambda invocations into a viable runtime for Meilisearch.
+This repository is a Meilisearch Lambda wrapper and Terraform example for self-hosting Meilisearch on
+AWS Lambda. It combines [Lambda Web Adapter](https://github.com/awslabs/aws-lambda-web-adapter),
+persistent Amazon EFS storage, and a lightweight Rust proxy that waits for Meilisearch's asynchronous
+write tasks to complete before the Lambda invocation returns.
+
+If you are looking for **serverless Meilisearch**, **Meilisearch on Lambda**, or a low-cost way to run
+Meilisearch on AWS without an always-on EC2/ECS host, this project is intended to be a practical
+starting point.
 
 **Who is this for?** Developers and small teams looking for a low-cost, serverless alternative to
 Meilisearch Cloud, Algolia, or a dedicated EC2/ECS instance, especially for side projects,
 internal tools, or low-to-moderate traffic workloads.
 
-## Quick start
+## Quick start: deploy Meilisearch on AWS Lambda
 
 Pre-built binaries for `x86_64` and `aarch64` are published on every
 [GitHub Release](https://github.com/alchemaxinc/meilisearch-lambda-wrapper/releases).
@@ -112,6 +116,18 @@ as the write needs.
 
 All other requests — searches, GETs, DELETEs — are proxied through untouched with minimal overhead.
 
+### How this differs from basic Meilisearch Lambda examples
+
+Many Meilisearch on AWS Lambda examples show that Meilisearch can start behind Lambda Web Adapter and
+read indexes from EFS. That is enough for search-only demos, but it does not address Meilisearch's
+asynchronous write queue.
+
+| Approach                              | What works                           | What is missing                         |
+| ------------------------------------- | ------------------------------------ | --------------------------------------- |
+| Meilisearch + Lambda Web Adapter only | HTTP routing and read/search traffic | Reliable document and settings writes   |
+| Meilisearch + Lambda + EFS only       | Persistent index storage             | Waiting for async Meilisearch tasks     |
+| This Meilisearch Lambda wrapper + EFS | Reads, writes, persistence, IaC      | Not intended for high-traffic workloads |
+
 ## Why serverless Meilisearch?
 
 Running a full-text search engine typically means paying for an always-on server or a managed
@@ -188,6 +204,30 @@ documented Terraform project that provisions everything you need:
 
 See the [Terraform README](docs/terraform_example/README.md) for a step-by-step getting started
 guide.
+
+## FAQ: Meilisearch on AWS Lambda
+
+### Can I run Meilisearch on AWS Lambda?
+
+Yes. This project runs Meilisearch inside a Lambda container image, exposes it through Lambda Web
+Adapter, and stores Meilisearch data on Amazon EFS so indexes survive cold starts.
+
+### Do I need Amazon EFS for Meilisearch on Lambda?
+
+Yes, for persistent indexes. Lambda's local filesystem is ephemeral, so Meilisearch database, dump,
+and snapshot paths should point to an EFS mount.
+
+### Does Lambda Web Adapter alone solve Meilisearch writes?
+
+No. Lambda Web Adapter forwards HTTP requests, but Meilisearch writes are asynchronous. This wrapper
+keeps the Lambda invocation open and polls Meilisearch task status until the write reaches a terminal
+state.
+
+### Is serverless Meilisearch production-ready?
+
+This is best treated as a proof of concept or low-to-moderate traffic deployment pattern. It is a good
+fit for side projects, internal tools, staging environments, and cost-sensitive workloads where
+occasional cold starts and EFS latency are acceptable.
 
 ## When should I use this?
 
