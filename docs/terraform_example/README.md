@@ -1,8 +1,8 @@
-# Terraform Example: Meilisearch on AWS Lambda + EFS
+# Deploy Meilisearch on AWS Lambda with Terraform
 
-This is a complete Terraform project that provisions the AWS infrastructure for running
-Meilisearch on Lambda with persistent EFS storage. Use it as a starting point and adapt it to
-your needs.
+This is a complete Terraform project that provisions the AWS infrastructure for running Meilisearch on
+AWS Lambda with persistent Amazon EFS storage, Lambda Web Adapter, API Gateway, monitoring, and IAM.
+Use it as a starting point and adapt it to your needs.
 
 ## What gets provisioned
 
