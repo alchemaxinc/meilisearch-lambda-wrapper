@@ -6,8 +6,9 @@
 //!   completes, and returns the final result synchronously.
 //! - OPTIONS requests return an empty 200 for CORS preflight.
 
-use crate::config;
 use std::error::Error;
+
+use crate::config;
 
 /// Reverse proxy state shared across all request handlers.
 #[derive(Clone)]

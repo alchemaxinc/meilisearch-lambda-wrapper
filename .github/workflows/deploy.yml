@@ -27,7 +27,7 @@ jobs:
         id: app
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
+          client-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
           private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
@@ -91,7 +91,7 @@ jobs:
         uses: actions/create-github-app-token@v3
         with:
           owner: ${{ github.repository_owner }}
-          app-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
+          client-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
           private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}
 
       - name: Checkout code
@@ -148,7 +148,7 @@ jobs:
         uses: actions/create-github-app-token@v3
         with:
           owner: ${{ github.repository_owner }}
-          app-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
+          client-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
           private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}
 
       - name: Publish release
