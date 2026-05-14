@@ -1,5 +1,8 @@
 # Build stage: compile the Rust wrapper binary
-FROM rust:1.94-alpine AS builder
+# RUST_VERSION is sourced from rust-toolchain.toml so the cargo updater
+# (which bumps the channel field) is the single source of truth.
+ARG RUST_VERSION=1.95.0
+FROM rust:${RUST_VERSION}-alpine AS builder
 
 RUN apk add --no-cache musl-dev
 

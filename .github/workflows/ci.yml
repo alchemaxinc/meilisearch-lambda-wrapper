@@ -77,10 +77,6 @@ jobs:
             manifest: wrapper/Cargo.toml
             target: wrapper/target
             lockfile: wrapper/Cargo.lock
-          - name: sync-versions
-            manifest: infrastructure/sync_versions/Cargo.toml
-            target: infrastructure/sync_versions/target
-            lockfile: infrastructure/sync_versions/Cargo.lock
     steps:
       - *checkout-code
 
@@ -137,7 +133,6 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            infrastructure/sync_versions/target
             wrapper/target
           key: v1-cargo-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
@@ -171,6 +166,8 @@ jobs:
           context: .
           load: true
           tags: meilisearch-lambda-wrapper-api:test
+          build-args: |
+            RUST_VERSION=${{ steps.rust-version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

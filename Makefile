@@ -7,9 +7,13 @@ SERVICE_NAME=meilisearch-lambda-wrapper
 DOCKER_IMAGE_NAME=$(SERVICE_NAME)-api
 DOCKER_IMAGE_TAG?=abc123def
 
+# Sourced from rust-toolchain.toml so the cargo updater drives the Docker
+# builder image version too (see .github/workflows/update-deps-docker.yml,
+# which excludes `rust` from the docker-image bumper).
+RUST_VERSION := $(shell sed -nE 's/^channel[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' rust-toolchain.toml)
+
 # Rust crate manifest paths
 WRAPPER_MANIFEST=wrapper/Cargo.toml
-SYNC_VERSIONS_MANIFEST=infrastructure/sync_versions/Cargo.toml
 
 STRESS_TEST_SCRIPT=infrastructure/stress_tests/stress-test.js
 
@@ -20,6 +24,7 @@ define docker_build
 	docker buildx build \
 	--provenance=false \
 	--platform linux/$(1) \
+	--build-arg RUST_VERSION=$(RUST_VERSION) \
 	$(2) \
 	-t $(3) \
 	-f Dockerfile .
@@ -37,16 +42,9 @@ clean: ## Clean up built files
 .PHONY: lint
 lint: ## Run linter
 	cargo clippy \
-		--manifest-path $(SYNC_VERSIONS_MANIFEST) \
-		--all-targets \
-		-- -D warnings
-	cargo clippy \
 		--manifest-path $(WRAPPER_MANIFEST) \
 		--all-targets \
 		-- -D warnings
-	cargo +nightly fmt \
-		--manifest-path $(SYNC_VERSIONS_MANIFEST) \
-		-- --check
 	cargo +nightly fmt \
 		--manifest-path $(WRAPPER_MANIFEST) \
 		-- --check
@@ -55,15 +53,9 @@ lint: ## Run linter
 .PHONY: format
 format: ## Format files
 	cargo clippy \
-		--manifest-path $(SYNC_VERSIONS_MANIFEST) \
-		--all-targets \
-		--fix --allow-dirty
-	cargo clippy \
 		--manifest-path $(WRAPPER_MANIFEST) \
 		--all-targets \
 		--fix --allow-dirty
-	cargo +nightly fmt \
-		--manifest-path $(SYNC_VERSIONS_MANIFEST)
 	cargo +nightly fmt \
 		--manifest-path $(WRAPPER_MANIFEST)
 	npx prettier --write .
@@ -71,22 +63,17 @@ format: ## Format files
 .PHONY: build
 build: ## Build all Rust crates
 	cargo build \
-		--manifest-path $(SYNC_VERSIONS_MANIFEST) \
-		--release
-	cargo build \
 		--manifest-path $(WRAPPER_MANIFEST) \
 		--release
 
 .PHONY: test-unit
 test-unit: ## Run unit tests
 	cargo test \
-		--manifest-path $(SYNC_VERSIONS_MANIFEST)
-	cargo test \
 		--manifest-path $(WRAPPER_MANIFEST)
 
 .PHONY: test-integration
 test-integration: ## Run integration tests
-	docker build -t $(DOCKER_IMAGE_NAME):test .
+	docker build --build-arg RUST_VERSION=$(RUST_VERSION) -t $(DOCKER_IMAGE_NAME):test .
 	docker compose -f $(INTEGRATION_COMPOSE) up -d --wait
 	MEILI_MASTER_KEY=test-master-key-12345 cargo test \
 		--manifest-path $(WRAPPER_MANIFEST) \
@@ -98,7 +85,7 @@ test-integration: ## Run integration tests
 
 .PHONY: test-stress
 test-stress: ## Run k6 stress tests (requires k6: https://grafana.com/docs/k6/latest/set-up/install-k6/)
-	docker build -t $(DOCKER_IMAGE_NAME):test .
+	docker build --build-arg RUST_VERSION=$(RUST_VERSION) -t $(DOCKER_IMAGE_NAME):test .
 	docker compose -f $(INTEGRATION_COMPOSE) up -d --wait
 	k6 run $(STRESS_TEST_SCRIPT); \
 	exit_code=$$?; \
