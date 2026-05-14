@@ -1,0 +1,33 @@
+name: Update Docker Images
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 0" # Run every Sunday at midnight
+
+jobs:
+  update-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create temporary GitHub App Token
+        id: app
+        uses: actions/create-github-app-token@v3
+        with:
+          owner: ${{ github.repository_owner }}
+          app-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
+          private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}
+
+      - name: Update Docker Images
+        uses: alchemaxinc/update-deps/docker@v2
+        with:
+          token: ${{ steps.app.outputs.token }}
+          auto-merge: "true"
+          base-branch: "main"
+          branch-prefix: "fix/auto/update-docker-images"
+          # chore: so semantic-release doesn't create a new release for
+          # Dockerfile-only changes (which don't affect the wrapper binary)
+          pr-title: "chore: automatic Docker image upgrades"
+          commit-message: "chore: update docker images"
+          markdown-glob: "**/*.md"
+          # Rust builder image is driven by rust-toolchain.toml via a
+          # --build-arg in the Dockerfile; the cargo updater bumps it.
+          excluded-images: "rust"
