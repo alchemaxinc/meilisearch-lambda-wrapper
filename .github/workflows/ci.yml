@@ -154,14 +154,14 @@ jobs:
 
       # BuildKit enables advanced cache backends (required for GHA cache below)
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # Build Docker image with GHA cache to avoid recompiling Rust dependencies.
       # cache-from pulls cached layers, cache-to pushes them back (mode=max caches
       # intermediate layers too, so the dependency layer from our split Dockerfile
       # is preserved across runs).
       - name: Build Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           load: true

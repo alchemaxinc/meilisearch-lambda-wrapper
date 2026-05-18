@@ -17,7 +17,7 @@ jobs:
           private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}
 
       - name: Update Cargo Dependencies
-        uses: alchemaxinc/update-deps/cargo@v1
+        uses: alchemaxinc/update-deps/cargo@v2
         with:
           token: ${{ steps.app.outputs.token }}
           auto-merge: "true"
