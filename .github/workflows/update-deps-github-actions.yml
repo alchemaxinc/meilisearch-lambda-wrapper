@@ -17,7 +17,7 @@ jobs:
           private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}
 
       - name: Update GitHub Actions
-        uses: alchemaxinc/update-deps/actions@v1
+        uses: alchemaxinc/update-deps/actions@v2
         with:
           token: ${{ steps.app.outputs.token }}
           auto-merge: "true"
