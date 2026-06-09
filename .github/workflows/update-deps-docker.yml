@@ -21,6 +21,7 @@ jobs:
         with:
           token: ${{ steps.app.outputs.token }}
           auto-merge: "true"
+          merge-method: "squash"
           base-branch: "main"
           branch-prefix: "fix/auto/update-docker-images"
           # chore: so semantic-release doesn't create a new release for
