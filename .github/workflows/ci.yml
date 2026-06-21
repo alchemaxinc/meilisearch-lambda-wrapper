@@ -19,7 +19,7 @@ jobs:
     steps:
       - &checkout-code
         name: Checkout code (shallow)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - &cache-commitlint
         name: Cache Commitlint
@@ -38,7 +38,7 @@ jobs:
     needs: install-commitlint
     steps:
       - name: Checkout code (full)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
