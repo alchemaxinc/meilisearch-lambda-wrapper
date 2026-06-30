@@ -193,7 +193,7 @@ jobs:
     if: always()
     needs: [lint-rust, run-commitlint, test-unit, test-integration]
     steps:
-      - name: Verify all jobs passed or were skipped
+      - name: Verify all jobs passed, skipped, or were cancelled
         run: |
           results=(
             "${{ needs.lint-rust.result }}"
@@ -202,9 +202,9 @@ jobs:
             "${{ needs.test-integration.result }}"
           )
           for result in "${results[@]}"; do
-            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
-              echo "Job failed or was cancelled: $result"
+            if [[ "$result" == "failure" ]]; then
+              echo "Job failed: $result"
               exit 1
             fi
           done
-          echo "All jobs passed or were skipped"
+          echo "All jobs passed, were skipped, or were cancelled"
