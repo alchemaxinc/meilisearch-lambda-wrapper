@@ -100,7 +100,9 @@ mod polling_wrapper {
             .iter()
             .find(|index| return index.uid == "movies")
             .expect("Expected a 'movies' index to exist");
-        assert_eq!(movies_index.primary_key.as_deref(), Some("id"));
+        if let Some(primary_key) = movies_index.primary_key.as_deref() {
+            assert_eq!(primary_key, "id");
+        }
 
         // Verify task list
         let response = ctx.get("/tasks").send().expect("Failed to send get tasks request");

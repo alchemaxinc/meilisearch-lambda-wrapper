@@ -7,9 +7,10 @@
 //! operations return `202 Accepted`. Others return `200 OK`. So the proxy
 //! checks the response body for a `taskUid`, not the status code. When a
 //! `taskUid` is present, the proxy polls `/tasks/{uid}` until the task
-//! reaches a terminal state, then returns the final result. A response
-//! without a `taskUid` (a search, a read, or an error) passes through with
-//! no change.
+//! reaches a terminal state. On success, the proxy returns the final task
+//! JSON with a 200 response. On failure, cancellation, or timeout, it
+//! returns a 5xx error instead. A response without a `taskUid` (a search, a
+//! read, or an error) passes through with no change.
 //!
 //! An OPTIONS request returns an empty 200 response for CORS preflight.
 
