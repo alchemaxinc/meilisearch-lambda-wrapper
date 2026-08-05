@@ -18,11 +18,24 @@ pub struct TaskResponse {
     pub details: TaskDetails,
 }
 
+/// A minimal task response shape. Every async Meilisearch operation
+/// returns this shape: index creation, settings updates, document
+/// deletion, and task cancellation or deletion. Not every task type
+/// returns a `details` field, so this struct omits it.
+#[derive(Debug, Deserialize)]
+pub struct SimpleTaskResponse {
+    pub status: String,
+    #[serde(rename = "type")]
+    pub task_type: String,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct IndexEntry {
     pub uid: String,
+    // Meilisearch's index listing can briefly show a null primaryKey right
+    // after index creation, before the metadata catches up with the task.
     #[serde(rename = "primaryKey")]
-    pub primary_key: String,
+    pub primary_key: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -36,13 +49,15 @@ pub struct IndexListResponse {
 #[derive(Debug, Deserialize)]
 pub struct TaskEntry {
     #[serde(rename = "indexUid")]
-    pub index_uid: String,
+    pub index_uid: Option<String>,
     pub status: String,
     #[serde(rename = "type")]
     pub task_type: String,
     #[serde(rename = "canceledBy")]
     pub canceled_by: serde_json::Value,
-    pub details: TaskDetails,
+    // Not every task type has this shape, so parse it as raw JSON here
+    // and read specific fields only where the task type is known.
+    pub details: serde_json::Value,
     pub error: serde_json::Value,
 }
 
@@ -91,6 +106,27 @@ impl TestContext {
         return self
             .client
             .post(format!("{}{}", self.base_url, path))
+            .headers(self.headers.clone());
+    }
+
+    pub fn put(&self, path: &str) -> blocking::RequestBuilder {
+        return self
+            .client
+            .put(format!("{}{}", self.base_url, path))
+            .headers(self.headers.clone());
+    }
+
+    pub fn patch(&self, path: &str) -> blocking::RequestBuilder {
+        return self
+            .client
+            .patch(format!("{}{}", self.base_url, path))
+            .headers(self.headers.clone());
+    }
+
+    pub fn delete(&self, path: &str) -> blocking::RequestBuilder {
+        return self
+            .client
+            .delete(format!("{}{}", self.base_url, path))
             .headers(self.headers.clone());
     }
 }
