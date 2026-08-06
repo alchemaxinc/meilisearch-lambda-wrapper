@@ -82,11 +82,15 @@ pub static SUPERVISION_INTERVAL: std::sync::LazyLock<std::time::Duration> = std:
 /// loop; this bounds each individual HTTP call within it, so a stalled
 /// connection cannot hang the proxy forever.
 ///
-/// Env: `UPSTREAM_REQUEST_TIMEOUT_SECONDS` (default: 30)
+/// Capped at [`MAX_WAIT_TIME`]: a per-request timeout longer than the whole
+/// polling budget can never fire before the Lambda invocation itself times
+/// out, silently defeating the point of this setting.
+///
+/// Env: `UPSTREAM_REQUEST_TIMEOUT_SECONDS` (default: 30, capped at `MAX_WAIT_TIME`)
 pub static UPSTREAM_REQUEST_TIMEOUT: std::sync::LazyLock<std::time::Duration> = std::sync::LazyLock::new(|| {
     let secs: u64 = std::env::var("UPSTREAM_REQUEST_TIMEOUT_SECONDS")
         .unwrap_or_else(|_| return "30".to_string())
         .parse()
         .expect("UPSTREAM_REQUEST_TIMEOUT_SECONDS must be a number");
-    return std::time::Duration::from_secs(secs);
+    return std::cmp::min(std::time::Duration::from_secs(secs), *MAX_WAIT_TIME);
 });
