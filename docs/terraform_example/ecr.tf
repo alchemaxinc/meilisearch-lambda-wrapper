@@ -53,8 +53,11 @@ resource "null_resource" "ecr_bootstrap_image" {
       aws ecr get-login-password --region ${data.aws_region.current.region} | \
         docker login --username AWS --password-stdin ${aws_ecr_repository.my_synchronous_meilisearch_api.repository_url}
 
-      # 2. Pull a tiny public image
-      docker pull hello-world:latest
+      # 2. Pull a tiny public image, matching the Lambda's arm64 architecture
+      # (docs/terraform_example/lambda_api_function.tf). Without --platform,
+      # this pulls the host's native architecture (often amd64 on CI/dev
+      # machines), which the Lambda cannot run.
+      docker pull --platform linux/arm64 hello-world:latest
 
       # 3. Tag it with your ECR repo URL
       docker tag hello-world:latest ${aws_ecr_repository.my_synchronous_meilisearch_api.repository_url}:${local.bootstrap_tag}
