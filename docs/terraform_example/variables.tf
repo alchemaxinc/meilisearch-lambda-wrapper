@@ -35,7 +35,7 @@ variable "api_lambda_timeout_seconds" {
     # how long the Lambda keeps running, even if the request would have
     # succeeded. Keep this in sync with the timeout_milliseconds set on
     # aws_api_gateway_integration in api_gateway_rest.tf.
-    condition     = var.api_lambda_timeout_seconds <= 29 && var.api_lambda_timeout_seconds > 0
+    condition     = var.api_lambda_timeout_seconds <= 29 && var.api_lambda_timeout_seconds >= 1
     error_message = "api_lambda_timeout_seconds must be between 1 and 29 seconds (API Gateway integration timeout hard limit)."
   }
 }
