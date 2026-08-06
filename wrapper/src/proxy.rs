@@ -16,6 +16,8 @@
 
 use std::error::Error;
 
+use http_body_util::LengthLimitError;
+
 use crate::config;
 
 /// Reverse proxy state shared across all request handlers.
@@ -38,9 +40,16 @@ struct TaskStatus {
 }
 
 /// Copies incoming request headers into a new map for the upstream request.
+/// Skips the same hop-by-hop/framing headers as [`config::HEADERS_TO_SKIP`],
+/// since the outgoing body may differ in length from what the client sent
+/// (for example, when it was truncated at the size limit), so the upstream
+/// HTTP client must compute the correct `content-length` itself.
 fn sanitize_request_headers(headers: &axum::http::HeaderMap) -> reqwest::header::HeaderMap {
     let mut sanitized = reqwest::header::HeaderMap::new();
     for (key, value) in headers.iter() {
+        if config::HEADERS_TO_SKIP.contains(&key.as_str()) {
+            continue;
+        }
         sanitized.insert(key, value.clone());
     }
     return sanitized;
@@ -63,11 +72,45 @@ fn build_response(
     return response.body(axum::body::Body::from(body)).unwrap();
 }
 
+/// Reads the full request body, up to [`config::MAX_REQUEST_BODY_SIZE`].
+/// Returns `413 Payload Too Large` when the body exceeds the limit, or `400
+/// Bad Request` if the body could not be read for any other reason (for
+/// example, the client disconnected mid-upload). Earlier, any read error
+/// here was silently replaced with an empty body, which forwarded a body
+/// that no longer matched the request and could hang the upstream call.
+async fn read_request_body(body: axum::body::Body) -> Result<bytes::Bytes, axum::response::Response> {
+    return axum::body::to_bytes(body, *config::MAX_REQUEST_BODY_SIZE)
+        .await
+        .map_err(|e| {
+            let is_too_large =
+                std::error::Error::source(&e).is_some_and(|source| return source.is::<LengthLimitError>());
+            if is_too_large {
+                tracing::warn!(
+                    limit = *config::MAX_REQUEST_BODY_SIZE,
+                    "request body exceeded size limit"
+                );
+                return axum::response::Response::builder()
+                    .status(413)
+                    .body(axum::body::Body::from("request body too large"))
+                    .unwrap();
+            }
+            tracing::error!(error = %e, "failed to read request body");
+            return axum::response::Response::builder()
+                .status(400)
+                .body(axum::body::Body::from(format!("failed to read request body: {}", e)))
+                .unwrap();
+        });
+}
+
 impl Proxy {
-    /// Creates a new proxy with a default HTTP client.
+    /// Creates a new proxy with an HTTP client configured with a timeout to
+    /// stop a single upstream request from hanging forever.
     pub fn new() -> Self {
         return Self {
-            client: reqwest::Client::new(),
+            client: reqwest::Client::builder()
+                .timeout(*config::UPSTREAM_REQUEST_TIMEOUT)
+                .build()
+                .expect("failed to build upstream HTTP client"),
         };
     }
 
@@ -160,9 +203,10 @@ impl Proxy {
         tracing::info!(method = %method, url = %url, "proxying request");
 
         let headers = sanitize_request_headers(request.headers());
-        let body_bytes = axum::body::to_bytes(request.into_body(), *config::MAX_REQUEST_BODY_SIZE)
-            .await
-            .unwrap_or_default();
+        let body_bytes = match read_request_body(request.into_body()).await {
+            Ok(bytes) => bytes,
+            Err(rejection) => return rejection,
+        };
 
         let upstream_response = match proxy
             .client

@@ -3,12 +3,17 @@
 //! All customizable values are exposed as environment variables with sensible defaults.
 //! Constants that don't change between environments are plain `const` values.
 
-/// Hop-by-hop headers to strip from proxied responses. These must not be forwarded
-/// because the proxy buffers the full upstream body before sending it to the client:
+/// Hop-by-hop headers to strip when copying headers between the client and
+/// Meilisearch, in either direction. The proxy buffers the full request or
+/// response body before it forwards the body, so any header that describes
+/// the original framing is stale and must not pass through:
 ///
-/// - `transfer-encoding`: upstream may chunk, but we send the complete body at once
-/// - `content-length`: upstream value may not match after decompression/re-encoding
-/// - `connection`: hop-by-hop header per HTTP spec, not meant for end-to-end forwarding
+/// - `transfer-encoding`: the original side may chunk, but we always send a
+///   single complete body
+/// - `content-length`: the original value may not match the buffered body,
+///   for example after the client's body is truncated at the size limit
+/// - `connection`: hop-by-hop header per the HTTP spec, not meant for
+///   end-to-end forwarding
 pub const HEADERS_TO_SKIP: &[&str] = &["transfer-encoding", "content-length", "connection"];
 
 /// Port the proxy listens on for incoming HTTP requests. This is the port that
@@ -55,4 +60,19 @@ pub static MAX_REQUEST_BODY_SIZE: std::sync::LazyLock<usize> = std::sync::LazyLo
         .parse()
         .expect("MAX_REQUEST_BODY_SIZE_MB must be a number");
     return mb * 1024 * 1024;
+});
+
+/// Maximum time to wait for a single upstream request to Meilisearch (the
+/// initial forwarded request, or one task-status poll) to complete. This is
+/// separate from [`MAX_WAIT_TIME`], which bounds the whole task-polling
+/// loop; this bounds each individual HTTP call within it, so a stalled
+/// connection cannot hang the proxy forever.
+///
+/// Env: `UPSTREAM_REQUEST_TIMEOUT_SECONDS` (default: 30)
+pub static UPSTREAM_REQUEST_TIMEOUT: std::sync::LazyLock<std::time::Duration> = std::sync::LazyLock::new(|| {
+    let secs: u64 = std::env::var("UPSTREAM_REQUEST_TIMEOUT_SECONDS")
+        .unwrap_or_else(|_| return "30".to_string())
+        .parse()
+        .expect("UPSTREAM_REQUEST_TIMEOUT_SECONDS must be a number");
+    return std::time::Duration::from_secs(secs);
 });
