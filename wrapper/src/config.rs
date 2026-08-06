@@ -62,6 +62,20 @@ pub static MAX_REQUEST_BODY_SIZE: std::sync::LazyLock<usize> = std::sync::LazyLo
     return mb * 1024 * 1024;
 });
 
+/// How often the supervisor thread checks whether the Meilisearch child
+/// process is still alive. If the process has exited, the wrapper exits
+/// too, so the container orchestrator (Lambda/ECS) can restart it instead
+/// of serving errors forever from a dead Meilisearch instance.
+///
+/// Env: `MEILISEARCH_SUPERVISION_INTERVAL_MS` (default: 1000)
+pub static SUPERVISION_INTERVAL: std::sync::LazyLock<std::time::Duration> = std::sync::LazyLock::new(|| {
+    let ms: u64 = std::env::var("MEILISEARCH_SUPERVISION_INTERVAL_MS")
+        .unwrap_or_else(|_| return "1000".to_string())
+        .parse()
+        .expect("MEILISEARCH_SUPERVISION_INTERVAL_MS must be a number");
+    return std::time::Duration::from_millis(ms);
+});
+
 /// Maximum time to wait for a single upstream request to Meilisearch (the
 /// initial forwarded request, or one task-status poll) to complete. This is
 /// separate from [`MAX_WAIT_TIME`], which bounds the whole task-polling
