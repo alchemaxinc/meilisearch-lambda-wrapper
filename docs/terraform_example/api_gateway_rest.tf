@@ -48,6 +48,10 @@ resource "aws_api_gateway_integration" "my_synchronous_meilisearch_api_gateway_i
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = aws_lambda_function.my_synchronous_meilisearch_api.invoke_arn
+  # Explicit, rather than relying on the 29000ms default, so this stays in
+  # sync with api_lambda_timeout_seconds instead of silently diverging if
+  # someone changes one but not the other.
+  timeout_milliseconds = var.api_lambda_timeout_seconds * 1000
 }
 
 # API Gateway Method (OPTIONS), on the resource. A mock-resource with no real backend, just to handle CORS
