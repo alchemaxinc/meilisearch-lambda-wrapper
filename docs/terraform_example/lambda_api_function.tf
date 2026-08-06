@@ -76,7 +76,12 @@ resource "aws_lambda_function" "my_synchronous_meilisearch_api" {
 
   logging_config {
     log_format = "Text"
-    log_group  = "/aws/lambda/my-synchronous-meilisearch-api-${var.environment}"
+    # Must match the log group the alarms/metric filters in
+    # lambda_api_logging.tf actually watch: "/aws/lambda/${function_name}".
+    # This was previously hardcoded to a literal service name, so it silently
+    # diverged (and alarms watched an empty log group) whenever
+    # var.service_name differed from that literal.
+    log_group = "/aws/lambda/${var.service_name}-api-${var.environment}"
   }
 
   # CRITICAL: Ignore future changes to image_uri so Terraform doesn't
