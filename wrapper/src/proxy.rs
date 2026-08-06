@@ -9,7 +9,11 @@
 //! `taskUid` is present, the proxy polls `/tasks/{uid}` until the task
 //! reaches a terminal state. On success, the proxy returns the final task
 //! JSON with a 200 response. On failure, cancellation, or timeout, it
-//! returns a 5xx error instead. A response without a `taskUid` (a search, a
+//! returns a 5xx error instead. If the caller's API key cannot poll task
+//! status (it lacks the `tasks.get` action), the proxy cannot confirm the
+//! outcome. In that case, it returns the original enqueued-task response
+//! with no change, instead of a `500` that would misreport a write that
+//! may have actually succeeded. A response without a `taskUid` (a search, a
 //! read, or an error) passes through with no change.
 //!
 //! An OPTIONS request returns an empty 200 response for CORS preflight.
@@ -37,6 +41,33 @@ struct EnqueuedTask {
 #[derive(serde::Deserialize)]
 struct TaskStatus {
     status: String,
+}
+
+/// Failure modes for [`Proxy::wait_for_task`]. Kept distinct from a plain
+/// `String` so the caller can tell a permission problem (the write may have
+/// succeeded; we just cannot confirm it) apart from an actual task failure
+/// or a timeout.
+enum WaitForTaskError {
+    /// The caller's API key cannot poll `/tasks/{uid}` (Meilisearch returned
+    /// `401` or `403`). The task itself may still be running or may have
+    /// already succeeded — the proxy has no way to know.
+    PermissionDenied(String),
+    /// The task reached a terminal state of `failed` or `canceled`.
+    TaskFailed(String),
+    /// The task did not reach a terminal state before the timeout.
+    TimedOut(String),
+    /// Any other error while polling (network error, malformed response).
+    Other(String),
+}
+
+impl std::fmt::Display for WaitForTaskError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        return match self {
+            Self::PermissionDenied(msg) | Self::TaskFailed(msg) | Self::TimedOut(msg) | Self::Other(msg) => {
+                write!(f, "{}", msg)
+            }
+        };
+    }
 }
 
 /// Copies incoming request headers into a new map for the upstream request.
@@ -133,7 +164,11 @@ impl Proxy {
     /// Polls Meilisearch's `/tasks/{uid}` endpoint until the task reaches a
     /// terminal state (`succeeded`, `failed`, or `canceled`) or the timeout
     /// expires. Returns the final task JSON body on success.
-    async fn wait_for_task(&self, task_uid: u64, headers: &reqwest::header::HeaderMap) -> Result<bytes::Bytes, String> {
+    async fn wait_for_task(
+        &self,
+        task_uid: u64,
+        headers: &reqwest::header::HeaderMap,
+    ) -> Result<bytes::Bytes, WaitForTaskError> {
         let url = format!("{}/tasks/{}", config::MEILISEARCH_HOST, task_uid);
         let timeout_at = std::time::Instant::now() + *config::MAX_WAIT_TIME;
         let poll_interval = *config::POLL_INTERVAL;
@@ -151,14 +186,29 @@ impl Proxy {
                     let body = resp
                         .bytes()
                         .await
-                        .map_err(|e| format!("failed to read task response: {}", e))?;
+                        .map_err(|e| return WaitForTaskError::Other(format!("failed to read task response: {}", e)))?;
 
-                    if status_code.is_client_error() || status_code.is_server_error() {
-                        return Err(format!("error fetching task {}: {}", task_uid, status_code));
+                    // The caller's API key may not have the `tasks.get` action.
+                    // The write itself may have already succeeded — the proxy
+                    // just cannot check. Treat this differently from a real
+                    // task failure so the caller isn't told the write failed.
+                    if status_code == reqwest::StatusCode::UNAUTHORIZED || status_code == reqwest::StatusCode::FORBIDDEN
+                    {
+                        return Err(WaitForTaskError::PermissionDenied(format!(
+                            "caller's API key cannot poll task {} status: {}",
+                            task_uid, status_code
+                        )));
                     }
 
-                    let task: TaskStatus =
-                        serde_json::from_slice(&body).map_err(|e| format!("failed to parse task response: {}", e))?;
+                    if status_code.is_client_error() || status_code.is_server_error() {
+                        return Err(WaitForTaskError::Other(format!(
+                            "error fetching task {}: {}",
+                            task_uid, status_code
+                        )));
+                    }
+
+                    let task: TaskStatus = serde_json::from_slice(&body)
+                        .map_err(|e| return WaitForTaskError::Other(format!("failed to parse task response: {}", e)))?;
 
                     tracing::debug!(task_uid = task_uid, status = %task.status, "task poll");
                     match task.status.as_str() {
@@ -167,7 +217,10 @@ impl Proxy {
                             return Ok(body);
                         }
                         "failed" | "canceled" => {
-                            return Err(format!("task {} terminal state: {}", task_uid, task.status));
+                            return Err(WaitForTaskError::TaskFailed(format!(
+                                "task {} terminal state: {}",
+                                task_uid, task.status
+                            )));
                         }
                         _ => {} // still processing
                     }
@@ -180,7 +233,10 @@ impl Proxy {
             tokio::time::sleep(poll_interval).await;
         }
 
-        return Err(format!("timed out waiting for task {}", task_uid));
+        return Err(WaitForTaskError::TimedOut(format!(
+            "timed out waiting for task {}",
+            task_uid
+        )));
     }
 
     /// Forwards a request to Meilisearch. If the response body has a
@@ -257,6 +313,21 @@ impl Proxy {
                     .header("content-type", "application/json")
                     .body(axum::body::Body::from(task_body))
                     .unwrap(),
+                // The write itself was already accepted by Meilisearch (that is
+                // how we got a `taskUid` at all). The caller's API key just
+                // cannot poll `/tasks/{uid}` to confirm completion. Returning
+                // 500 here would tell the caller the write failed, when it may
+                // well have succeeded. Instead, pass through the original
+                // enqueued-task response unchanged, so the caller sees exactly
+                // what Meilisearch told us: the task was accepted.
+                Err(WaitForTaskError::PermissionDenied(e)) => {
+                    tracing::warn!(
+                        task_uid = enqueued.task_uid,
+                        error = %e,
+                        "cannot confirm task completion due to insufficient permissions; returning the enqueued task response instead of a false error"
+                    );
+                    build_response(resp_status, &resp_headers, resp_body)
+                }
                 Err(e) => {
                     tracing::error!(task_uid = enqueued.task_uid, error = %e, "task polling failed");
                     axum::response::Response::builder()
