@@ -75,13 +75,16 @@ impl std::fmt::Display for WaitForTaskError {
 /// since the outgoing body may differ in length from what the client sent
 /// (for example, when it was truncated at the size limit), so the upstream
 /// HTTP client must compute the correct `content-length` itself.
+///
+/// Uses `append` rather than `insert` so headers repeated multiple times
+/// (e.g. `Cookie`, `Accept`) keep every value instead of only the last one.
 fn sanitize_request_headers(headers: &axum::http::HeaderMap) -> reqwest::header::HeaderMap {
     let mut sanitized = reqwest::header::HeaderMap::new();
     for (key, value) in headers.iter() {
         if config::HEADERS_TO_SKIP.contains(&key.as_str()) {
             continue;
         }
-        sanitized.insert(key, value.clone());
+        sanitized.append(key, value.clone());
     }
     return sanitized;
 }
