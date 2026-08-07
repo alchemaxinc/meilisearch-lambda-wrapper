@@ -128,6 +128,59 @@ mod polling_wrapper {
     }
 }
 
+// A write can succeed even when the caller's API key lacks permission to
+// poll `/tasks/{uid}` (e.g. a key scoped to only `documents.add`). The
+// proxy must not report this as a failed write; it must pass through the
+// original enqueued-task response instead of returning 500.
+mod scoped_key_writes {
+    use super::common;
+
+    #[test]
+    fn write_with_task_poll_permission_denied_returns_enqueued_task_not_500() {
+        let ctx = common::TestContext::new();
+
+        let response = ctx
+            .post("/indexes")
+            .json(&serde_json::json!({"uid": "scoped_key_test", "primaryKey": "id"}))
+            .send()
+            .expect("Failed to send create index request");
+        assert_eq!(response.status(), 200);
+
+        // Create a key that can add documents but cannot read tasks.
+        let response = ctx
+            .post("/keys")
+            .json(&serde_json::json!({
+                "actions": ["documents.add"],
+                "indexes": ["scoped_key_test"],
+                "expiresAt": null
+            }))
+            .send()
+            .expect("Failed to send create key request");
+        assert_eq!(response.status(), 201, "Failed to create scoped key");
+        let key: serde_json::Value = response.json().expect("Failed to parse key response JSON");
+        let scoped_key = key["key"].as_str().expect("Expected key field in response").to_string();
+
+        let response = ctx
+            .post_with_key("/indexes/scoped_key_test/documents", &scoped_key)
+            .json(&serde_json::json!([{"id": 1, "title": "a"}]))
+            .send()
+            .expect("Failed to send add documents request with scoped key");
+
+        // The write was accepted by Meilisearch (taskUid was returned), but
+        // the proxy could not poll the task because the scoped key lacks
+        // `tasks.get`. It must pass through the original enqueued response,
+        // not report a 500 for a write that actually succeeded.
+        assert_eq!(
+            response.status(),
+            202,
+            "Expected the original enqueued-task response (202), got {}",
+            response.status()
+        );
+        let body: serde_json::Value = response.json().expect("Failed to parse response JSON");
+        assert!(body.get("taskUid").is_some(), "Expected response to contain a taskUid");
+    }
+}
+
 // Every async Meilisearch operation must wait for the task to finish. This
 // is not only true for `POST /indexes/{*rest}`. Meilisearch returns a
 // summarized task with a `taskUid` for each of these operations. Task

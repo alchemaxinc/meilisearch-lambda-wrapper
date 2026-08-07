@@ -26,11 +26,17 @@ variable "ecr_repository_name" {
 variable "api_lambda_timeout_seconds" {
   description = "Timeout (seconds) for the API Lambda (must be <= 29 due to API Gateway hard limit)."
   type        = number
-  default     = 120
+  default     = 29
 
   validation {
-    condition     = var.api_lambda_timeout_seconds <= 900 && var.api_lambda_timeout_seconds > 0
-    error_message = "api_lambda_timeout_seconds must be between 1 and 15 minutes (AWS Lambda timeout limit)."
+    # API Gateway REST APIs hard-cap the integration timeout at 29 seconds and
+    # cannot be configured higher. A Lambda timeout beyond that is silently
+    # useless: API Gateway returns a 504 to the client at 29s regardless of
+    # how long the Lambda keeps running, even if the request would have
+    # succeeded. Keep this in sync with the timeout_milliseconds set on
+    # aws_api_gateway_integration in api_gateway_rest.tf.
+    condition     = var.api_lambda_timeout_seconds <= 29 && var.api_lambda_timeout_seconds >= 1
+    error_message = "api_lambda_timeout_seconds must be between 1 and 29 seconds (API Gateway integration timeout hard limit)."
   }
 }
 

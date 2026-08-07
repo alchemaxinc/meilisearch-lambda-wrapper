@@ -109,6 +109,14 @@ impl TestContext {
             .headers(self.headers.clone());
     }
 
+    /// Builds a POST request authenticated with a specific API key instead
+    /// of the master key. Used to test behavior with a scoped/restricted key.
+    pub fn post_with_key(&self, path: &str, api_key: &str) -> blocking::RequestBuilder {
+        let mut headers = self.headers.clone();
+        headers.insert("Authorization", format!("Bearer {api_key}").parse().unwrap());
+        return self.client.post(format!("{}{}", self.base_url, path)).headers(headers);
+    }
+
     pub fn put(&self, path: &str) -> blocking::RequestBuilder {
         return self
             .client

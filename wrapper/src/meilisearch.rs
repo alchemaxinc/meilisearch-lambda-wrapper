@@ -4,9 +4,11 @@
 //! output, and forwards each line at the correct log level.
 
 /// Handle to the running Meilisearch child process. Killing the process is
-/// handled automatically via the [`Drop`] implementation.
+/// handled automatically via the [`Drop`] implementation. The process is
+/// wrapped in a mutex so both the supervisor thread and `Drop` can access it.
 pub struct Meilisearch {
-    process: std::process::Child,
+    process: std::sync::Arc<std::sync::Mutex<std::process::Child>>,
+    pid: u32,
 }
 
 const MEILISEARCH_BINARY_NAME: &str = "meilisearch";
@@ -83,6 +85,7 @@ impl Meilisearch {
             .spawn()?;
 
         tracing::info!(pid = child.id(), "meilisearch process started");
+        let pid = child.id();
         let stdout = child.stdout.take().expect("stdout was piped");
         let stderr = child.stderr.take().expect("stderr was piped");
 
@@ -112,20 +115,61 @@ impl Meilisearch {
             }
         });
 
-        return Ok(Self { process: child });
+        let process = std::sync::Arc::new(std::sync::Mutex::new(child));
+        spawn_supervisor(pid, std::sync::Arc::clone(&process));
+
+        return Ok(Self { process, pid });
     }
 
     /// Returns the OS process ID of the running Meilisearch instance.
     pub fn pid(&self) -> u32 {
-        return self.process.id();
+        return self.pid;
     }
+}
+
+/// Spawns a background thread that periodically checks whether the
+/// Meilisearch child process is still running. If it has exited, the whole
+/// wrapper process exits too, since a Lambda/ECS container with no
+/// Meilisearch backing it can never serve requests again. Exiting lets the
+/// orchestrator restart the container instead of it serving errors forever.
+fn spawn_supervisor(pid: u32, process: std::sync::Arc<std::sync::Mutex<std::process::Child>>) {
+    std::thread::spawn(move || {
+        loop {
+            std::thread::sleep(*crate::config::SUPERVISION_INTERVAL);
+            let status = match process.lock() {
+                Ok(mut child) => child.try_wait(),
+                Err(e) => {
+                    tracing::error!(error = %e, "meilisearch process mutex poisoned, exiting");
+                    std::process::exit(1);
+                }
+            };
+            match status {
+                Ok(Some(exit_status)) => {
+                    tracing::error!(pid, %exit_status, "meilisearch process exited unexpectedly, exiting wrapper");
+                    std::process::exit(1);
+                }
+                Ok(None) => continue,
+                Err(e) => {
+                    tracing::error!(pid, error = %e, "failed to check meilisearch process status");
+                    continue;
+                }
+            }
+        }
+    });
 }
 
 impl Drop for Meilisearch {
     fn drop(&mut self) {
         tracing::info!(pid = self.pid(), "stopping meilisearch");
-        if let Err(e) = self.process.kill() {
-            tracing::error!(error = %e, "failed to kill meilisearch process");
+        match self.process.lock() {
+            Ok(mut child) => {
+                if let Err(e) = child.kill() {
+                    tracing::error!(error = %e, "failed to kill meilisearch process");
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "meilisearch process mutex poisoned, cannot kill process");
+            }
         }
     }
 }

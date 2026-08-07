@@ -99,7 +99,7 @@ meilisearch_master_key = "a-strong-random-key"
 | `git_sha`                      | yes      | —       | Version identifier for the deployment      |
 | `ecr_repository_name`          | yes      | —       | ECR repository name for the Docker image   |
 | `meilisearch_master_key`       | yes      | —       | Meilisearch authentication key (sensitive) |
-| `api_lambda_timeout_seconds`   | no       | `120`   | Lambda timeout in seconds (1–900)          |
+| `api_lambda_timeout_seconds`   | no       | `29`    | Lambda timeout in seconds (1–29)           |
 | `meilisearch_poll_interval_ms` | no       | `100`   | Wrapper poll interval in ms (1–5000)       |
 
 ### 2. Initialize and apply
@@ -190,9 +190,10 @@ receive these alerts.
 
 - **Memory**: The Lambda is set to 512 MB, which is the minimum for stable Meilisearch
   operation. Increase it for larger indexes.
-- **Timeout**: Default is 120 seconds. Increase `api_lambda_timeout_seconds` for large document
-  imports. Note that API Gateway has a 29-second hard limit for synchronous responses — for
-  longer operations, consider invoking Lambda asynchronously.
+- **Timeout**: Default and maximum is 29 seconds — API Gateway hard-caps the integration timeout
+  at 29 seconds, so `api_lambda_timeout_seconds` cannot be raised beyond that; a longer Lambda
+  timeout would just be silently truncated by a 504 from API Gateway. For imports that may take
+  longer, consider invoking Lambda asynchronously instead of through this synchronous API Gateway.
 - **Region**: The provider defaults to `eu-north-1`. Change it in `provider.tf`.
 - **VPC**: This example uses the default VPC and its security group. For production, consider a
   dedicated VPC with private subnets.
