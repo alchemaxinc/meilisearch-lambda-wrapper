@@ -191,12 +191,14 @@ jobs:
     name: CI Passed
     runs-on: ubuntu-latest
     if: always()
-    needs: [lint-rust, run-commitlint, test-unit, test-integration]
+    needs:
+      [lint-rust, lint-prettier, run-commitlint, test-unit, test-integration]
     steps:
       - name: Verify all jobs passed, skipped, or were cancelled
         run: |
           results=(
             "${{ needs.lint-rust.result }}"
+            "${{ needs.lint-prettier.result }}"
             "${{ needs.run-commitlint.result }}"
             "${{ needs.test-unit.result }}"
             "${{ needs.test-integration.result }}"
