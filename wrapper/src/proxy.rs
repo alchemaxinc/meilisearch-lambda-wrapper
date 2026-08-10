@@ -8,13 +8,19 @@
 //! checks the response body for a `taskUid`, not the status code. When a
 //! `taskUid` is present, the proxy polls `/tasks/{uid}` until the task
 //! reaches a terminal state. On success, the proxy returns the final task
-//! JSON with a 200 response. On failure, cancellation, or timeout, it
-//! returns a 5xx error instead. If the caller's API key cannot poll task
-//! status (it lacks the `tasks.get` action), the proxy cannot confirm the
-//! outcome. In that case, it returns the original enqueued-task response
-//! with no change, instead of a `500` that would misreport a write that
-//! may have actually succeeded. A response without a `taskUid` (a search, a
-//! read, or an error) passes through with no change.
+//! JSON with a 200 response. Meilisearch's own task-detail shape identifies
+//! the task with a `uid` field rather than `taskUid`; the proxy adds a
+//! `taskUid` alias so SDK code that reads the enqueue response's `taskUid`
+//! field keeps working. On failure or cancellation, the proxy returns the
+//! same augmented task JSON (with Meilisearch's `error` details) but with a
+//! `500` status, so the caller gets full diagnostics without mistaking it
+//! for a success. On timeout or any other polling error, it returns a `5xx`
+//! error instead. If the caller's API key cannot poll task status (it lacks
+//! the `tasks.get` action), the proxy cannot confirm the outcome. In that
+//! case, it returns the original enqueued-task response with no change,
+//! instead of a `500` that would misreport a write that may have actually
+//! succeeded. A response without a `taskUid` (a search, a read, or an
+//! error) passes through with no change.
 //!
 //! An OPTIONS request returns an empty 200 response for CORS preflight.
 
@@ -52,8 +58,10 @@ enum WaitForTaskError {
     /// `401` or `403`). The task itself may still be running or may have
     /// already succeeded — the proxy has no way to know.
     PermissionDenied(String),
-    /// The task reached a terminal state of `failed` or `canceled`.
-    TaskFailed(String),
+    /// The task reached a terminal state of `failed` or `canceled`. Carries
+    /// the actual task JSON (with Meilisearch's own `error` details) so the
+    /// caller isn't left with only a generic message.
+    TaskFailed(String, bytes::Bytes),
     /// The task did not reach a terminal state before the timeout.
     TimedOut(String),
     /// Any other error while polling (network error, malformed response).
@@ -63,9 +71,8 @@ enum WaitForTaskError {
 impl std::fmt::Display for WaitForTaskError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         return match self {
-            Self::PermissionDenied(msg) | Self::TaskFailed(msg) | Self::TimedOut(msg) | Self::Other(msg) => {
-                write!(f, "{}", msg)
-            }
+            Self::PermissionDenied(msg) | Self::TimedOut(msg) | Self::Other(msg) => write!(f, "{}", msg),
+            Self::TaskFailed(msg, _) => write!(f, "{}", msg),
         };
     }
 }
@@ -104,6 +111,50 @@ fn build_response(
         response = response.header(key, value);
     }
     return response.body(axum::body::Body::from(body)).unwrap();
+}
+
+/// Like [`build_response`], but additionally drops `content-encoding`. Use
+/// this when `body` isn't the exact body the original `headers` describe —
+/// for example, the polled task body returned in place of the original
+/// enqueue response, which may also have been re-serialized by
+/// [`add_task_uid_alias`]. Forwarding a stale `content-encoding` in that case
+/// would tell the client to decode a body that either isn't encoded that way
+/// or isn't encoded at all.
+fn build_response_with_replaced_body(
+    status: reqwest::StatusCode,
+    headers: &reqwest::header::HeaderMap,
+    body: bytes::Bytes,
+) -> axum::response::Response {
+    let mut headers = headers.clone();
+    headers.remove(reqwest::header::CONTENT_ENCODING);
+    return build_response(status, &headers, body);
+}
+
+/// Meilisearch's own `GET /tasks/{uid}` response identifies the task with a
+/// `uid` field, while the initial enqueue response (the one official SDKs
+/// parse right after a write call) uses `taskUid`. Since the proxy waits for
+/// the task and returns the polled task body in its place, add `taskUid`
+/// alongside `uid` so SDK code that reads `response.taskUid` after a write
+/// keeps working, without dropping any of Meilisearch's original fields.
+fn add_task_uid_alias(body: bytes::Bytes) -> bytes::Bytes {
+    let mut value: serde_json::Value = match serde_json::from_slice(&body) {
+        Ok(v) => v,
+        Err(_) => return body,
+    };
+    let serde_json::Value::Object(map) = &mut value else {
+        return body;
+    };
+    if map.contains_key("taskUid") {
+        return body;
+    }
+    let Some(uid) = map.get("uid").cloned() else {
+        return body;
+    };
+    map.insert("taskUid".to_string(), uid);
+    return match serde_json::to_vec(&value) {
+        Ok(bytes) => bytes::Bytes::from(bytes),
+        Err(_) => body,
+    };
 }
 
 /// Reads the full request body, up to [`config::MAX_REQUEST_BODY_SIZE`].
@@ -220,10 +271,10 @@ impl Proxy {
                             return Ok(body);
                         }
                         "failed" | "canceled" => {
-                            return Err(WaitForTaskError::TaskFailed(format!(
-                                "task {} terminal state: {}",
-                                task_uid, task.status
-                            )));
+                            return Err(WaitForTaskError::TaskFailed(
+                                format!("task {} terminal state: {}", task_uid, task.status),
+                                body,
+                            ));
                         }
                         _ => {} // still processing
                     }
@@ -311,11 +362,11 @@ impl Proxy {
             tracing::info!(task_uid = enqueued.task_uid, "waiting for task to complete");
 
             return match proxy.wait_for_task(enqueued.task_uid, &headers).await {
-                Ok(task_body) => axum::response::Response::builder()
-                    .status(200)
-                    .header("content-type", "application/json")
-                    .body(axum::body::Body::from(task_body))
-                    .unwrap(),
+                Ok(task_body) => build_response_with_replaced_body(
+                    reqwest::StatusCode::OK,
+                    &resp_headers,
+                    add_task_uid_alias(task_body),
+                ),
                 // The write itself was already accepted by Meilisearch (that is
                 // how we got a `taskUid` at all). The caller's API key just
                 // cannot poll `/tasks/{uid}` to confirm completion. Returning
@@ -330,6 +381,19 @@ impl Proxy {
                         "cannot confirm task completion due to insufficient permissions; returning the enqueued task response instead of a false error"
                     );
                     build_response(resp_status, &resp_headers, resp_body)
+                }
+                // Preserve the real task JSON (with Meilisearch's `error`
+                // details) instead of discarding it for a generic message,
+                // while still returning a non-2xx status so callers relying
+                // on the HTTP status (rather than the `status` field) don't
+                // mistake this for a success.
+                Err(WaitForTaskError::TaskFailed(e, body)) => {
+                    tracing::error!(task_uid = enqueued.task_uid, error = %e, "task reached a failed/canceled state");
+                    build_response_with_replaced_body(
+                        reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+                        &resp_headers,
+                        add_task_uid_alias(body),
+                    )
                 }
                 Err(e) => {
                     tracing::error!(task_uid = enqueued.task_uid, error = %e, "task polling failed");
