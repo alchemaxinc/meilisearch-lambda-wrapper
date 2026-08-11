@@ -35,8 +35,8 @@ variable "api_lambda_timeout_seconds" {
     # how long the Lambda keeps running, even if the request would have
     # succeeded. Keep this in sync with the timeout_milliseconds set on
     # aws_api_gateway_integration in api_gateway_rest.tf.
-    condition     = var.api_lambda_timeout_seconds <= 29 && var.api_lambda_timeout_seconds >= 1
-    error_message = "api_lambda_timeout_seconds must be between 1 and 29 seconds (API Gateway integration timeout hard limit)."
+    condition     = var.api_lambda_timeout_seconds <= 29 && var.api_lambda_timeout_seconds >= 1 && var.api_lambda_timeout_seconds == floor(var.api_lambda_timeout_seconds)
+    error_message = "api_lambda_timeout_seconds must be a whole number between 1 and 29 seconds (API Gateway integration timeout hard limit)."
   }
 }
 
@@ -52,7 +52,10 @@ variable "meilisearch_poll_interval_ms" {
   default     = 100
 
   validation {
-    condition     = var.meilisearch_poll_interval_ms > 0 && var.meilisearch_poll_interval_ms <= 5000
-    error_message = "meilisearch_poll_interval_ms must be between 1 and 5000 milliseconds."
+    # Passed through as MEILISEARCH_POLL_INTERVAL_MS and parsed as a u64 by
+    # the wrapper; a fractional value would fail that parse and panic at
+    # startup, so require a whole number here instead.
+    condition     = var.meilisearch_poll_interval_ms >= 1 && var.meilisearch_poll_interval_ms <= 5000 && var.meilisearch_poll_interval_ms == floor(var.meilisearch_poll_interval_ms)
+    error_message = "meilisearch_poll_interval_ms must be a whole number between 1 and 5000 milliseconds."
   }
 }
