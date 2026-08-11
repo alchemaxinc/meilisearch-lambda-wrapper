@@ -45,7 +45,9 @@ pub const MEILISEARCH_HOST: &str = "http://localhost:7700";
 
 /// Maximum time to wait for an async Meilisearch task (e.g. document indexing) to
 /// complete before returning an error. Derived from the Lambda's configured timeout
-/// minus 1 second of headroom for cleanup.
+/// minus 1 second of headroom for cleanup. Validated to be at least 1 second so a
+/// misconfigured `AWS_LAMBDA_TIMEOUT_SECONDS` of 0 or 1 fails fast at startup with a
+/// clear message instead of underflowing the subtraction.
 ///
 /// Env: `AWS_LAMBDA_TIMEOUT_SECONDS` (default: 300)
 pub static MAX_WAIT_TIME: std::sync::LazyLock<std::time::Duration> = std::sync::LazyLock::new(|| {
@@ -53,6 +55,11 @@ pub static MAX_WAIT_TIME: std::sync::LazyLock<std::time::Duration> = std::sync::
         .unwrap_or_else(|_| return "300".to_string())
         .parse()
         .expect("AWS_LAMBDA_TIMEOUT_SECONDS must be a number");
+    assert!(
+        timeout >= 2,
+        "AWS_LAMBDA_TIMEOUT_SECONDS must be at least 2 (got {}), to leave room for 1 second of cleanup headroom",
+        timeout
+    );
     return std::time::Duration::from_secs(timeout - 1);
 });
 

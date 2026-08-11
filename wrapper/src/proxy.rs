@@ -216,15 +216,21 @@ impl Proxy {
     }
 
     /// Polls Meilisearch's `/tasks/{uid}` endpoint until the task reaches a
-    /// terminal state (`succeeded`, `failed`, or `canceled`) or the timeout
-    /// expires. Returns the final task JSON body on success.
+    /// terminal state (`succeeded`, `failed`, or `canceled`) or `deadline`
+    /// passes. Returns the final task JSON body on success.
+    ///
+    /// `deadline` is computed once for the whole request in
+    /// [`Self::proxy_handler`] (before the initial forwarded call), not
+    /// restarted here, so time spent on the initial request also counts
+    /// against [`config::MAX_WAIT_TIME`] instead of extending the total
+    /// request time beyond it.
     async fn wait_for_task(
         &self,
         task_uid: u64,
         headers: &reqwest::header::HeaderMap,
+        deadline: std::time::Instant,
     ) -> Result<bytes::Bytes, WaitForTaskError> {
         let url = format!("{}/tasks/{}", config::MEILISEARCH_HOST, task_uid);
-        let timeout_at = std::time::Instant::now() + *config::MAX_WAIT_TIME;
         let poll_interval = *config::POLL_INTERVAL;
 
         tracing::debug!(
@@ -233,7 +239,7 @@ impl Proxy {
             "polling task status"
         );
 
-        while std::time::Instant::now() < timeout_at {
+        while std::time::Instant::now() < deadline {
             match self.client.get(&url).headers(headers.clone()).send().await {
                 Ok(resp) => {
                     let status_code = resp.status();
@@ -310,6 +316,11 @@ impl Proxy {
         let url = format!("{}{}", config::MEILISEARCH_HOST, request.uri());
         let method = request.method().clone();
 
+        // Computed once, before the initial forwarded request, so time
+        // spent on that request also counts against MAX_WAIT_TIME instead
+        // of extending the total request time past the Lambda timeout.
+        let deadline = std::time::Instant::now() + *config::MAX_WAIT_TIME;
+
         tracing::info!(method = %method, url = %url, "proxying request");
 
         let headers = sanitize_request_headers(request.headers());
@@ -361,7 +372,7 @@ impl Proxy {
         if let Ok(enqueued) = serde_json::from_slice::<EnqueuedTask>(&resp_body) {
             tracing::info!(task_uid = enqueued.task_uid, "waiting for task to complete");
 
-            return match proxy.wait_for_task(enqueued.task_uid, &headers).await {
+            return match proxy.wait_for_task(enqueued.task_uid, &headers, deadline).await {
                 Ok(task_body) => build_response_with_replaced_body(
                     reqwest::StatusCode::OK,
                     &resp_headers,
