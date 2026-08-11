@@ -12,9 +12,28 @@
 ///   single complete body
 /// - `content-length`: the original value may not match the buffered body,
 ///   for example after the client's body is truncated at the size limit
-/// - `connection`: hop-by-hop header per the HTTP spec, not meant for
-///   end-to-end forwarding
-pub const HEADERS_TO_SKIP: &[&str] = &["transfer-encoding", "content-length", "connection"];
+/// - `connection`, `keep-alive`, `proxy-authenticate`, `proxy-authorization`,
+///   `te`, `trailer`, `upgrade`: the remaining hop-by-hop headers listed in
+///   RFC 7230 Section 6.1, none of which are meant for end-to-end forwarding
+///
+/// Deliberately does NOT include `content-encoding`: the proxy never decodes
+/// a compressed upstream body (the reqwest client has no gzip/brotli/zstd
+/// feature enabled), so for an unmodified passthrough response, forwarding
+/// `content-encoding` unchanged alongside the still-encoded body is correct.
+/// Only the task-polling responses that re-serialize their body (see
+/// `proxy::add_task_uid_alias`) need to drop this header, and they do so
+/// directly rather than through this shared list.
+pub const HEADERS_TO_SKIP: &[&str] = &[
+    "transfer-encoding",
+    "content-length",
+    "connection",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailer",
+    "upgrade",
+];
 
 /// Port the proxy listens on for incoming HTTP requests. This is the port that
 /// AWS Lambda Web Adapter (LWA) forwards traffic to, and must match `AWS_LWA_PORT`.
