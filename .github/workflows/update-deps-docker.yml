@@ -15,6 +15,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           app-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
           private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
 
       - name: Update Docker Images
         uses: alchemaxinc/update-deps/docker@v2

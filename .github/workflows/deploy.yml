@@ -29,6 +29,7 @@ jobs:
           client-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
           private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
 
       - name: Checkout and setup
         uses: alchemaxinc/composite-toolbox/checkout-and-setup@v1
@@ -92,6 +93,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           client-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
           private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
 
       - name: Checkout code
         uses: actions/checkout@v7
@@ -149,6 +151,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           client-id: ${{ vars.HOUSEKEEPING_BOT_APP_ID }}
           private-key: ${{ secrets.HOUSEKEEPING_BOT_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
 
       - name: Publish release
         env:
