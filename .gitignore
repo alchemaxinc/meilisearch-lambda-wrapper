@@ -8,3 +8,11 @@ dist/
 
 # Rust
 target/
+
+# Terraform — real tfvars files may contain secrets (e.g. meilisearch_master_key).
+# Only the tracked *.example file should ever be committed.
+docs/terraform_example/terraform.tfvars
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl

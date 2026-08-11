@@ -34,7 +34,7 @@ flowchart TB
 | `provider.tf`               | AWS provider config and default tags                       |
 | `variables.tf`              | Input variables with validation                            |
 | `locals.tf`                 | Internal constants (EFS mount path, log filters)           |
-| `terraform.tfvars`          | Example variable values (**do not commit real secrets**)   |
+| `terraform.tfvars.example`  | Example variable values — copy to `terraform.tfvars` (gitignored) and fill in real secrets there |
 | `data.tf`                   | Lookups for default VPC, subnets, and security group       |
 | `ecr.tf`                    | ECR repository, lifecycle policy, and bootstrap image      |
 | `efs.tf`                    | EFS file system, mount targets (all AZs), and access point |
@@ -82,7 +82,7 @@ environment (e.g. `myproject-terraform-dev`, `myproject-terraform-prod`).
 
 ### 1. Configure variables
 
-Copy `terraform.tfvars` and fill in your values:
+Copy `terraform.tfvars.example` to `terraform.tfvars` (gitignored) and fill in your values:
 
 ```hcl
 service_name           = "my-meilisearch"
