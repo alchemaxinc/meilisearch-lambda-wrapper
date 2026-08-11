@@ -11,8 +11,15 @@ mod proxy;
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
-        // Get log level from RUST_LOG or default to "INFO"
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env().add_directive("info".parse().unwrap()))
+        // Respect RUST_LOG if set; default to "info" only when it isn't.
+        // Using `.add_directive()` on top of `from_default_env()` would
+        // add a second global directive alongside whatever RUST_LOG set,
+        // which can silently widen or narrow the effective level instead
+        // of acting as a pure fallback.
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| return tracing_subscriber::EnvFilter::new("info")),
+        )
         .json()
         // Promote fields to top level, instead of nesting inside 'fields'
         .flatten_event(true)

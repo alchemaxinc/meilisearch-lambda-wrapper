@@ -42,7 +42,10 @@ resource "aws_lambda_function" "my_synchronous_meilisearch_api" {
   environment {
     variables = {
       # General
-      LOG_LEVEL   = "DEBUG"
+      # RUST_LOG controls the wrapper's log verbosity (tracing_subscriber
+      # EnvFilter syntax, e.g. "info" or "wrapper=debug,info"); defaults to
+      # "info" in the binary itself if unset.
+      RUST_LOG    = "info"
       ENVIRONMENT = var.environment
       VERSION     = var.git_sha
 

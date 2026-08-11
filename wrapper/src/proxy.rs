@@ -321,7 +321,11 @@ impl Proxy {
         // of extending the total request time past the Lambda timeout.
         let deadline = std::time::Instant::now() + *config::MAX_WAIT_TIME;
 
-        tracing::info!(method = %method, url = %url, "proxying request");
+        // Log only the path at INFO — the query string can carry sensitive
+        // data (e.g. a search's `q` term, or filter values). The full URL,
+        // query string included, is only logged at DEBUG.
+        tracing::info!(method = %method, path = %request.uri().path(), "proxying request");
+        tracing::debug!(method = %method, url = %url, "proxying request (full url)");
 
         let headers = sanitize_request_headers(request.headers());
         let body_bytes = match read_request_body(request.into_body()).await {
