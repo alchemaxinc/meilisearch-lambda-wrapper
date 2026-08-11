@@ -28,26 +28,27 @@ flowchart TB
 
 ### File overview
 
-| File                        | Purpose                                                    |
-| --------------------------- | ---------------------------------------------------------- |
-| `backend.tf`                | S3 remote state with lock file                             |
-| `provider.tf`               | AWS provider config and default tags                       |
-| `variables.tf`              | Input variables with validation                            |
-| `locals.tf`                 | Internal constants (EFS mount path, log filters)           |
-| `terraform.tfvars`          | Example variable values (**do not commit real secrets**)   |
-| `data.tf`                   | Lookups for default VPC, subnets, and security group       |
-| `ecr.tf`                    | ECR repository, lifecycle policy, and bootstrap image      |
-| `efs.tf`                    | EFS file system, mount targets (all AZs), and access point |
-| `lambda_api_function.tf`    | Lambda function with EFS mount and env vars                |
-| `lambda_api_role.tf`        | IAM role with EFS and ECR permissions                      |
-| `lambda_api_logging.tf`     | CloudWatch log group, metric filters, and alarm            |
-| `api_gateway_rest.tf`       | REST API Gateway with proxy integration and CORS           |
-| `sns_metric_alert_topic.tf` | SNS topic and email subscription for alerts                |
-| `outputs.tf`                | Lambda timeout and API Gateway invoke URL                  |
+| File                        | Purpose                                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------------------ |
+| `backend.tf`                | S3 remote state with lock file                                                                   |
+| `provider.tf`               | AWS provider config and default tags                                                             |
+| `variables.tf`              | Input variables with validation                                                                  |
+| `locals.tf`                 | Internal constants (EFS mount path, log filters)                                                 |
+| `terraform.tfvars.example`  | Example variable values — copy to `terraform.tfvars` (gitignored) and fill in real secrets there |
+| `data.tf`                   | Lookups for default VPC, subnets, and security group                                             |
+| `ecr.tf`                    | ECR repository, lifecycle policy, and bootstrap image                                            |
+| `efs.tf`                    | EFS file system, mount targets (all AZs), and access point                                       |
+| `lambda_api_function.tf`    | Lambda function with EFS mount and env vars                                                      |
+| `lambda_api_role.tf`        | IAM role with EFS and ECR permissions                                                            |
+| `lambda_api_logging.tf`     | CloudWatch log group, metric filters, and alarm                                                  |
+| `api_gateway_rest.tf`       | REST API Gateway with proxy integration and CORS                                                 |
+| `sns_metric_alert_topic.tf` | SNS topic and email subscription for alerts                                                      |
+| `outputs.tf`                | Lambda timeout and API Gateway invoke URL                                                        |
 
 ## Pre-requisites
 
-- [Terraform](https://www.terraform.io/) ≥ 1.0
+- [Terraform](https://www.terraform.io/) ≥ 1.11 (required for `use_lockfile`, S3-native state
+  locking used in `backend.tf`)
 - AWS CLI configured with appropriate credentials
 - Docker (for the ECR bootstrap image push during `terraform apply`)
 
@@ -82,7 +83,7 @@ environment (e.g. `myproject-terraform-dev`, `myproject-terraform-prod`).
 
 ### 1. Configure variables
 
-Copy `terraform.tfvars` and fill in your values:
+Copy `terraform.tfvars.example` to `terraform.tfvars` (gitignored) and fill in your values:
 
 ```hcl
 service_name           = "my-meilisearch"

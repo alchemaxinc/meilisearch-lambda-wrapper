@@ -7,6 +7,11 @@ services:
       MEILI_MASTER_KEY: "test-master-key-12345"
       MEILI_NO_ANALYTICS: "true"
       MEILI_EXPERIMENTAL_LOGS_MODE: "json"
+      # The seed fixture (movies.csv) is ~14 MB, larger than the wrapper's
+      # new safer default of 9 MB (chosen for deployments fronted by API
+      # Gateway's 10 MB hard cap). Raise the limit here to exercise a
+      # larger, non-API-Gateway-fronted deployment scenario.
+      MAX_REQUEST_BODY_SIZE_MB: "20"
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://0.0.0.0:7700/health"]
       interval: 2s

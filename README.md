@@ -178,12 +178,17 @@ All settings are via environment variables:
 | `MEILI_MASTER_KEY`             | _(required)_ | Meilisearch master key for authentication                 |
 | `AWS_LAMBDA_TIMEOUT_SECONDS`   | `300`        | Lambda timeout; the wrapper stops polling 1 s before this |
 | `MEILISEARCH_POLL_INTERVAL_MS` | `100`        | How often to poll a task's status during a write          |
-| `MAX_REQUEST_BODY_SIZE_MB`     | `100`        | Maximum request body size accepted by the proxy           |
+| `MAX_REQUEST_BODY_SIZE_MB`     | `9`          | Maximum request body size accepted by the proxy           |
 | `RUST_LOG`                     | `info`       | Log level (`debug`, `info`, `warn`, `error`)              |
 | `AWS_LWA_PORT`                 | `8080`       | Must match the proxy's listen port (do not change)        |
 
 Meilisearch's own environment variables (`MEILI_DB_PATH`, `MEILI_DUMP_DIR`, etc.) are passed
 through to the child process. Point these at your EFS mount path.
+
+> `MAX_REQUEST_BODY_SIZE_MB` defaults to `9`, just under API Gateway REST APIs' hard 10 MB
+> payload cap (a larger value is silently unreachable behind that gateway) and mindful of the
+> 512 MB Lambda memory budget, which the request body, response body, and Meilisearch itself
+> all share.
 
 ## Infrastructure
 
@@ -245,3 +250,7 @@ occasional cold starts and EFS latency are acceptable.
 
 This is a **proof of concept**. It works well for the use cases above.
 [Contributions and feedback are welcome!](CONTRIBUTING.md)
+
+## License
+
+[MIT](LICENSE)

@@ -12,9 +12,28 @@
 ///   single complete body
 /// - `content-length`: the original value may not match the buffered body,
 ///   for example after the client's body is truncated at the size limit
-/// - `connection`: hop-by-hop header per the HTTP spec, not meant for
-///   end-to-end forwarding
-pub const HEADERS_TO_SKIP: &[&str] = &["transfer-encoding", "content-length", "connection"];
+/// - `connection`, `keep-alive`, `proxy-authenticate`, `proxy-authorization`,
+///   `te`, `trailer`, `upgrade`: the remaining hop-by-hop headers listed in
+///   RFC 7230 Section 6.1, none of which are meant for end-to-end forwarding
+///
+/// Deliberately does NOT include `content-encoding`: the proxy never decodes
+/// a compressed upstream body (the reqwest client has no gzip/brotli/zstd
+/// feature enabled), so for an unmodified passthrough response, forwarding
+/// `content-encoding` unchanged alongside the still-encoded body is correct.
+/// Only the task-polling responses that re-serialize their body (see
+/// `proxy::add_task_uid_alias`) need to drop this header, and they do so
+/// directly rather than through this shared list.
+pub const HEADERS_TO_SKIP: &[&str] = &[
+    "transfer-encoding",
+    "content-length",
+    "connection",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailer",
+    "upgrade",
+];
 
 /// Port the proxy listens on for incoming HTTP requests. This is the port that
 /// AWS Lambda Web Adapter (LWA) forwards traffic to, and must match `AWS_LWA_PORT`.
@@ -26,7 +45,9 @@ pub const MEILISEARCH_HOST: &str = "http://localhost:7700";
 
 /// Maximum time to wait for an async Meilisearch task (e.g. document indexing) to
 /// complete before returning an error. Derived from the Lambda's configured timeout
-/// minus 1 second of headroom for cleanup.
+/// minus 1 second of headroom for cleanup. Validated to be at least 1 second so a
+/// misconfigured `AWS_LAMBDA_TIMEOUT_SECONDS` of 0 or 1 fails fast at startup with a
+/// clear message instead of underflowing the subtraction.
 ///
 /// Env: `AWS_LAMBDA_TIMEOUT_SECONDS` (default: 300)
 pub static MAX_WAIT_TIME: std::sync::LazyLock<std::time::Duration> = std::sync::LazyLock::new(|| {
@@ -34,6 +55,11 @@ pub static MAX_WAIT_TIME: std::sync::LazyLock<std::time::Duration> = std::sync::
         .unwrap_or_else(|_| return "300".to_string())
         .parse()
         .expect("AWS_LAMBDA_TIMEOUT_SECONDS must be a number");
+    assert!(
+        timeout >= 2,
+        "AWS_LAMBDA_TIMEOUT_SECONDS must be at least 2 (got {}), to leave room for 1 second of cleanup headroom",
+        timeout
+    );
     return std::time::Duration::from_secs(timeout - 1);
 });
 
@@ -49,17 +75,30 @@ pub static POLL_INTERVAL: std::sync::LazyLock<std::time::Duration> = std::sync::
     return std::time::Duration::from_millis(ms);
 });
 
-/// Maximum allowed size of an incoming request body. Prevents a large payload from
-/// exhausting Lambda memory. Should be set to a fraction of the Lambda's configured
-/// memory, leaving room for the proxy, Meilisearch, and the response buffer.
+/// Default for [`MAX_REQUEST_BODY_SIZE`], in megabytes. Two constraints bound
+/// a sane value here:
 ///
-/// Env: `MAX_REQUEST_BODY_SIZE_MB` (default: 100)
+/// - The proxy buffers the full request body, the full response body, and
+///   runs alongside Meilisearch itself in the same container, all within
+///   the Lambda's configured memory (512 MB in the Terraform example) —
+///   a large limit leaves little headroom for the rest of that budget.
+/// - API Gateway REST APIs hard-cap the request payload at 10 MB
+///   (non-configurable), so a limit above that is silently unreachable
+///   when the proxy is fronted by API Gateway.
+const DEFAULT_MAX_REQUEST_BODY_SIZE_MB: usize = 9;
+
+/// Maximum allowed size of an incoming request body. Prevents a large payload from
+/// exhausting Lambda memory.
+///
+/// Env: `MAX_REQUEST_BODY_SIZE_MB` (default: [`DEFAULT_MAX_REQUEST_BODY_SIZE_MB`])
 pub static MAX_REQUEST_BODY_SIZE: std::sync::LazyLock<usize> = std::sync::LazyLock::new(|| {
     let mb: usize = std::env::var("MAX_REQUEST_BODY_SIZE_MB")
-        .unwrap_or_else(|_| return "100".to_string())
+        .unwrap_or_else(|_| return DEFAULT_MAX_REQUEST_BODY_SIZE_MB.to_string())
         .parse()
         .expect("MAX_REQUEST_BODY_SIZE_MB must be a number");
-    return mb * 1024 * 1024;
+    return mb
+        .checked_mul(1024 * 1024)
+        .expect("MAX_REQUEST_BODY_SIZE_MB is too large: overflows usize when converted to bytes");
 });
 
 /// How often the supervisor thread checks whether the Meilisearch child

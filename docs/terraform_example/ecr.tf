@@ -28,7 +28,7 @@ resource "aws_ecr_lifecycle_policy" "my_synchronous_meilisearch_api" {
         selection = {
           tagStatus   = "any"
           countType   = "imageCountMoreThan"
-          countNumber = 2
+          countNumber = 10
         }
         action = {
           type = "expire"

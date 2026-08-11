@@ -334,3 +334,79 @@ mod async_route_coverage {
         );
     }
 }
+
+// When the task Meilisearch enqueued reaches a `failed` (or `canceled`)
+// state, the proxy must not discard Meilisearch's own error details for a
+// generic message. It must return a non-2xx status (so callers relying on
+// the HTTP status rather than the `status` field don't mistake this for a
+// success) while still preserving the real task JSON, and must still add
+// the `taskUid` alias to it like every other polled task response.
+mod failed_task_reporting {
+    use super::common;
+
+    #[test]
+    fn failed_task_returns_500_with_original_error_and_task_uid_alias() {
+        let ctx = common::TestContext::new();
+
+        let response = ctx
+            .post("/indexes")
+            .json(&serde_json::json!({"uid": "failed_task_test", "primaryKey": "id"}))
+            .send()
+            .expect("Failed to send create index request");
+        assert_eq!(response.status(), 200);
+
+        // The create-index call is itself a polled, successful task. It
+        // should get the same `taskUid` alias as the failed task below,
+        // covering add_task_uid_alias's success path in this test too.
+        let created_task: serde_json::Value = response.json().expect("Failed to parse create index response JSON");
+        assert!(
+            created_task.get("taskUid").is_some(),
+            "Expected the taskUid alias to be added to a successful polled task, got {}",
+            created_task
+        );
+        assert_eq!(
+            created_task["taskUid"], created_task["uid"],
+            "Expected taskUid to alias uid: taskUid={}, uid={}",
+            created_task["taskUid"], created_task["uid"]
+        );
+
+        // The index has a primary key of `id`, so a document missing that
+        // attribute fails at the task level (not at the HTTP-request
+        // level): Meilisearch accepts and enqueues the write (still
+        // returns 202 with a taskUid), but the task itself later
+        // transitions to `failed` with an `error` object once processed.
+        let response = ctx
+            .post("/indexes/failed_task_test/documents")
+            .json(&serde_json::json!([{"noId": "x"}]))
+            .send()
+            .expect("Failed to send add documents request");
+
+        assert_eq!(
+            response.status(),
+            500,
+            "Expected the proxy to report a failed task as a 500, got {}",
+            response.status()
+        );
+
+        let body: serde_json::Value = response.json().expect("Failed to parse response JSON");
+        assert_eq!(
+            body["status"], "failed",
+            "Expected the original task's failed status to be preserved"
+        );
+        assert_eq!(
+            body["error"]["code"], "missing_document_id",
+            "Expected Meilisearch's original error details to be preserved, got {}",
+            body["error"]
+        );
+        assert!(
+            body.get("taskUid").is_some(),
+            "Expected the taskUid alias to be added even on a failed task, got {}",
+            body
+        );
+        assert_eq!(
+            body["taskUid"], body["uid"],
+            "Expected taskUid to alias uid: taskUid={}, uid={}",
+            body["taskUid"], body["uid"]
+        );
+    }
+}
