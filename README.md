@@ -250,3 +250,7 @@ occasional cold starts and EFS latency are acceptable.
 
 This is a **proof of concept**. It works well for the use cases above.
 [Contributions and feedback are welcome!](CONTRIBUTING.md)
+
+## License
+
+[MIT](LICENSE)
