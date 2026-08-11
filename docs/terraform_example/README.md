@@ -47,7 +47,8 @@ flowchart TB
 
 ## Pre-requisites
 
-- [Terraform](https://www.terraform.io/) ≥ 1.0
+- [Terraform](https://www.terraform.io/) ≥ 1.11 (required for `use_lockfile`, S3-native state
+  locking used in `backend.tf`)
 - AWS CLI configured with appropriate credentials
 - Docker (for the ECR bootstrap image push during `terraform apply`)
 
