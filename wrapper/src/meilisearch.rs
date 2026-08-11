@@ -65,11 +65,13 @@ fn forward_line(stream: &'static str, line: &str) {
             }
         }
         Err(_) => {
-            panic!(
-                "failed to parse meilisearch log line as JSON — \
-                 is MEILI_EXPERIMENTAL_LOGS_MODE=json set? \
-                 raw line: {line}"
-            );
+            // A blank line or a line that isn't valid JSON (e.g. a startup
+            // banner printed before MEILI_EXPERIMENTAL_LOGS_MODE=json takes
+            // effect, or an unexpected format change) must not crash the
+            // whole wrapper. Log it as-is at WARN and keep forwarding.
+            if !line.trim().is_empty() {
+                tracing::warn!(stream, raw_line = %line, "failed to parse meilisearch log line as JSON");
+            }
         }
     }
 }
