@@ -52,28 +52,31 @@ resource "aws_lambda_function" "my_synchronous_meilisearch_api" {
       # AWS
       AWS_LAMBDA_TIMEOUT_SECONDS = tostring(var.api_lambda_timeout_seconds)
 
-      # The AWS_LWA_READINESS_CHECK_PATH and AWS_LWA_READINESS_CHECK_PORT environment variables to let the AWS Lambda
-      # Web Extension poll the Meilisearch endpoint http://localhost:7700/health until receiving an HTTP 200 OK
-      # (cold start). From that point the Lambda will be considered ready to receive HTTP requests.
-      AWS_LWA_PORT : "8080",
-      AWS_LWA_READINESS_CHECK_PATH : "/health",
-      AWS_LWA_READINESS_CHECK_PORT : "7700",
+      # The AWS_LWA_READINESS_CHECK_PATH and AWS_LWA_READINESS_CHECK_PORT environment variables let the AWS Lambda
+      # Web Adapter poll http://localhost:8080/health (the wrapper's own port) until receiving an HTTP 200 OK
+      # (cold start). The wrapper has no special-cased /health route of its own; it proxies the request straight
+      # through to Meilisearch's /health, so this readiness check exercises the wrapper's HTTP listener as well as
+      # Meilisearch's health, rather than checking Meilisearch's port (7700) directly and never confirming the
+      # wrapper itself is up and proxying successfully.
+      AWS_LWA_PORT                 = "8080"
+      AWS_LWA_READINESS_CHECK_PATH = "/health"
+      AWS_LWA_READINESS_CHECK_PORT = "8080"
 
       # Meilisearch environment variables to make Meilisearch write on the EFS attached to the Lambda. The Meilisearch
       # database, dumps and snapshots are directed under the EFS mount path which corresponds to the root directory
       # of our access point. This ensures that documents indexed in Meilisearch are persisted between invocations of
       # the Lambda.
-      MEILI_ENV : var.environment
-      MEILI_EXPERIMENTAL_LOGS_MODE : "json",
-      MEILI_NO_ANALYTICS : "true",
-      MEILI_MASTER_KEY : var.meilisearch_master_key,
-      MEILI_DB_PATH : "${local.efs_mount_path}/data",
-      MEILI_DUMP_DIR : "${local.efs_mount_path}/dump",
-      MEILI_SNAPSHOT_DIR : "${local.efs_mount_path}/snapshot",
-      MEILI_EXPERIMENTAL_MAX_NUMBER_OF_BATCHED_TASKS : 1,
+      MEILI_ENV                                      = var.environment
+      MEILI_EXPERIMENTAL_LOGS_MODE                   = "json"
+      MEILI_NO_ANALYTICS                             = "true"
+      MEILI_MASTER_KEY                               = var.meilisearch_master_key
+      MEILI_DB_PATH                                  = "${local.efs_mount_path}/data"
+      MEILI_DUMP_DIR                                 = "${local.efs_mount_path}/dump"
+      MEILI_SNAPSHOT_DIR                             = "${local.efs_mount_path}/snapshot"
+      MEILI_EXPERIMENTAL_MAX_NUMBER_OF_BATCHED_TASKS = 1
 
       # Wrapper configuration for synchronous write operations
-      MEILISEARCH_POLL_INTERVAL_MS : tostring(var.meilisearch_poll_interval_ms)
+      MEILISEARCH_POLL_INTERVAL_MS = tostring(var.meilisearch_poll_interval_ms)
     }
   }
 
