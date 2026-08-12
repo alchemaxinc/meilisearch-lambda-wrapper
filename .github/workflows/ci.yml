@@ -87,7 +87,11 @@ jobs:
 
       - &install-rust
         name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
+        # Pinned to the `v1` tag's commit SHA (not `@master`, a moving ref)
+        # to avoid supply-chain risk and non-reproducible CI runs. Bump
+        # intentionally by checking https://github.com/dtolnay/rust-toolchain
+        # for a newer `v1` commit.
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
           toolchain: ${{ steps.rust-version.outputs.version }}
           components: clippy, rustfmt
@@ -105,8 +109,24 @@ jobs:
       - name: Run clippy
         run: cargo clippy --manifest-path ${{ matrix.manifest }} --all-targets -- -D warnings
 
+      - name: Install Rust nightly (for rustfmt)
+        # .rustfmt.toml uses imports_granularity/group_imports, which are
+        # unstable rustfmt options. The pinned stable toolchain above
+        # silently ignores them instead of erroring, which would make this
+        # check weaker than `make lint`'s local `cargo +nightly fmt`. Use
+        # a nightly toolchain here so both actually enforce the same
+        # formatting rules. Pinned to a specific date (rather than a
+        # floating `nightly`) so upstream rustfmt formatting changes can't
+        # start failing this job without an intentional version bump. The
+        # action itself is pinned to the `v1` tag's commit SHA, same as the
+        # stable toolchain step above, rather than the moving `@master` ref.
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        with:
+          toolchain: nightly-2026-08-01
+          components: rustfmt
+
       - name: Check formatting
-        run: cargo fmt --manifest-path ${{ matrix.manifest }} -- --check
+        run: cargo +nightly-2026-08-01 fmt --manifest-path ${{ matrix.manifest }} -- --check
 
   lint-prettier:
     runs-on: ubuntu-latest
