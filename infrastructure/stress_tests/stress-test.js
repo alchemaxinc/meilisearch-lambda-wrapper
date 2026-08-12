@@ -70,6 +70,12 @@ export const options = {
   },
 
   thresholds: {
+    // Without a threshold on the built-in `checks` metric, a failed check()
+    // (including the setup() seed checks and every teardown() consistency
+    // check below) is reported in the summary but does NOT fail the k6 run
+    // or produce a non-zero exit code. Require every check to pass so a
+    // failed seed or a data-consistency mismatch actually fails the test.
+    checks: ["rate==1.0"],
     http_req_failed: ["rate<0.01"],
     "http_req_duration{scenario:reads}": ["p(95)<500", "p(99)<1000"],
     "http_req_duration{scenario:writes_isolated}": [
