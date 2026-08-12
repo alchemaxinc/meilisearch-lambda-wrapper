@@ -6,3 +6,6 @@ environment            = "development"
 git_sha                = "abc123def"
 ecr_repository_name    = "my-synchronous-meilisearch-service-api"
 meilisearch_master_key = "CHANGE-ME-generate-a-real-secret-key"
+# Optional: subscribe an email to CloudWatch alarm notifications. Leave unset
+# to skip the subscription (the alarm and SNS topic are still created).
+# alert_email = "you@example.com"
