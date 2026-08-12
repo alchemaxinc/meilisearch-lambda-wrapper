@@ -1,5 +1,7 @@
 // EFS for Lambda - cheapest configuration
-// Uses One Zone storage class and Bursting throughput mode
+// Uses regional (Standard) storage class, General Purpose performance mode,
+// and Bursting throughput mode. (Not "One Zone": that storage class requires
+// setting `availability_zone_name` on the file system, which isn't set here.)
 
 // NOTE: Using the default VPC security group for both Lambda and EFS
 // The default security group allows all traffic within the VPC, which is fine
@@ -22,9 +24,13 @@ resource "aws_efs_file_system" "my_synchronous_meilisearch" {
   }
 }
 
-// Mount targets in all availability zones where Lambda will run
+// One mount target per Availability Zone (never per subnet: EFS rejects a
+// second mount target in the same AZ). See locals.tf's one_subnet_id_per_az.
+// Keyed by subnet id (not AZ) so that, on upgrade from an all-subnets
+// for_each, surviving subnets keep the same resource address instead of
+// Terraform planning to destroy and recreate every mount target.
 resource "aws_efs_mount_target" "my_synchronous_meilisearch" {
-  for_each = toset(data.aws_subnets.default.ids)
+  for_each = toset(values(local.one_subnet_id_per_az))
 
   file_system_id  = aws_efs_file_system.my_synchronous_meilisearch.id
   subnet_id       = each.value
