@@ -184,8 +184,8 @@ request never reaches Lambda, avoiding unnecessary invocations and cold starts.
 
 CloudWatch log metric filters watch for `panic`, `ERROR`, and `stacktrace` patterns in Lambda
 logs. When any error is detected within an hour-long evaluation window, a CloudWatch Alarm fires
-and sends a notification to an SNS topic. Update the email in `sns_metric_alert_topic.tf` to
-receive these alerts.
+and sends a notification to an SNS topic. Set the `alert_email` variable to subscribe an email
+address to that topic; without it, the topic and alarm are still created but no one is notified.
 
 ## Customizing
 
@@ -198,8 +198,8 @@ receive these alerts.
 - **Region**: The provider defaults to `eu-north-1`. Change it in `provider.tf`.
 - **VPC**: This example uses the default VPC and its security group. For production, consider a
   dedicated VPC with private subnets.
-- **Alerts**: Update the email address in `sns_metric_alert_topic.tf` and confirm the SNS
-  subscription via the email link AWS sends.
+- **Alerts**: Set the `alert_email` variable and confirm the SNS subscription via the email
+  link AWS sends.
 
 ## Troubleshooting
 

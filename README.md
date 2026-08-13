@@ -29,7 +29,7 @@ Create a `Dockerfile` for your Lambda function:
 FROM alpine:3.21 AS fetcher
 
 ARG TARGETARCH
-ARG WRAPPER_VERSION=2.0.4
+ARG WRAPPER_VERSION=2.3.0
 
 RUN apk add --no-cache curl && \
     case "${TARGETARCH}" in \
@@ -54,7 +54,7 @@ ENTRYPOINT ["/app/wrapper"]
 Pin the wrapper version with a build arg:
 
 ```sh
-docker build --build-arg WRAPPER_VERSION=1.2.3 .
+docker build --build-arg WRAPPER_VERSION=2.3.0 .
 ```
 
 ### Verifying checksums
@@ -62,7 +62,7 @@ docker build --build-arg WRAPPER_VERSION=1.2.3 .
 Each release includes `.sha256` files per binary:
 
 ```sh
-curl -fsSL -O https://github.com/alchemaxinc/meilisearch-lambda-wrapper/releases/download/v2.0.4/wrapper-x86_64-unknown-linux-musl{,.sha256}
+curl -fsSL -O https://github.com/alchemaxinc/meilisearch-lambda-wrapper/releases/download/v2.3.0/wrapper-x86_64-unknown-linux-musl{,.sha256}
 sha256sum -c wrapper-x86_64-unknown-linux-musl.sha256
 ```
 
@@ -144,17 +144,19 @@ low traffic volumes, scaling up automatically when needed.
 
 ## How the wrapper works
 
-The wrapper is a small, fast Rust binary (~3 MB)
+The wrapper is a small, fast Rust binary (~10 MB)
 that runs as the container's entrypoint. On startup it:
 
 1. **Launches Meilisearch** as a child process (listening on `localhost:7700`)
 2. **Starts an HTTP proxy** on port `8080` (where Lambda Web Adapter forwards traffic)
-3. **Proxies all requests** to Meilisearch, with special handling for index writes:
-   - Intercepts `POST /indexes/*` requests
-   - Forwards the request to Meilisearch and captures the returned `taskUid`
-   - Polls `GET /tasks/{taskUid}` until the task reaches a terminal state (`succeeded`, `failed`,
-     or `canceled`)
-   - Returns the final task result synchronously to the caller
+3. **Proxies all requests** to Meilisearch, with special handling for async writes:
+   - Forwards the request to Meilisearch and checks the response body for a `taskUid` — this
+     covers every async operation (index, document, and settings writes, swaps, dumps, and task
+     cancellation or deletion), not just document writes
+   - When a `taskUid` is present, polls `GET /tasks/{taskUid}` until the task reaches a terminal
+     state (`succeeded`, `failed`, or `canceled`)
+   - Returns the final task result synchronously to the caller, preserving Meilisearch's own
+     `error` details if the task failed
 
 This means your application code doesn't need to change — just point it at the Lambda URL instead
 of a Meilisearch server and writes will behave synchronously.
@@ -166,8 +168,9 @@ of a Meilisearch server and writes will behave synchronously.
 - **Pre-built multi-arch binaries** — `x86_64` and `aarch64` with SHA-256 checksums
 - **Terraform IaC example** — production-ready AWS Lambda + EFS + API Gateway setup
 - **Configurable timeouts** — respects Lambda's own timeout with 1 second of headroom
-- **Minimal overhead** — Rust binary adds ~3 MB and negligible latency to read operations
-- **CORS preflight handling** — OPTIONS requests return `200` without hitting Meilisearch
+- **Minimal overhead** — Rust binary adds ~10 MB and negligible latency to read operations
+- **CORS preflight handling** — OPTIONS requests return `200` with `Access-Control-Allow-*`
+  headers, without hitting Meilisearch
 
 ## Configuration
 

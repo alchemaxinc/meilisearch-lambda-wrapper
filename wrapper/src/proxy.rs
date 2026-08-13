@@ -22,7 +22,8 @@
 //! succeeded. A response without a `taskUid` (a search, a read, or an
 //! error) passes through with no change.
 //!
-//! An OPTIONS request returns an empty 200 response for CORS preflight.
+//! An OPTIONS request returns an empty 200 response with permissive
+//! `Access-Control-Allow-*` headers for CORS preflight.
 
 use std::error::Error;
 
@@ -97,15 +98,23 @@ fn sanitize_request_headers(headers: &axum::http::HeaderMap) -> reqwest::header:
 }
 
 /// Builds an outgoing response, filtering out hop-by-hop headers listed in
-/// [`config::HEADERS_TO_SKIP`].
+/// [`config::HEADERS_TO_SKIP`], and adding `Access-Control-Allow-Origin` so
+/// browsers actually permit cross-origin JavaScript to read the response.
+/// `Access-Control-Allow-Methods`/`-Headers` are preflight-only headers (set
+/// by [`Proxy::options_handler`] instead); only the origin header is needed
+/// on the actual response.
 fn build_response(
     status: reqwest::StatusCode,
     headers: &reqwest::header::HeaderMap,
     body: bytes::Bytes,
 ) -> axum::response::Response {
-    let mut response = axum::response::Response::builder().status(status.as_u16());
+    let mut response = axum::response::Response::builder()
+        .status(status.as_u16())
+        .header("access-control-allow-origin", config::CORS_ALLOW_ORIGIN);
     for (key, value) in headers.iter() {
-        if config::HEADERS_TO_SKIP.contains(&key.as_str()) {
+        if config::HEADERS_TO_SKIP.contains(&key.as_str())
+            || key.as_str().eq_ignore_ascii_case("access-control-allow-origin")
+        {
             continue;
         }
         response = response.header(key, value);
@@ -206,11 +215,20 @@ impl Proxy {
             .with_state(self);
     }
 
-    /// Handles CORS preflight requests with an empty 200 response.
+    /// Handles CORS preflight requests. An empty 200 with no
+    /// `Access-Control-Allow-*` headers is not a usable preflight response:
+    /// browsers require those headers on the `OPTIONS` response itself
+    /// before they'll send the actual cross-origin request. Mirrors the
+    /// permissive CORS mock configured at the API Gateway layer in the
+    /// Terraform example, so behavior is consistent whether the wrapper is
+    /// reached directly or through that API Gateway.
     async fn options_handler() -> axum::response::Response {
         return axum::response::Response::builder()
             .status(200)
             .header("content-length", "0")
+            .header("access-control-allow-origin", config::CORS_ALLOW_ORIGIN)
+            .header("access-control-allow-methods", config::CORS_ALLOW_METHODS)
+            .header("access-control-allow-headers", config::CORS_ALLOW_HEADERS)
             .body(axum::body::Body::empty())
             .unwrap();
     }

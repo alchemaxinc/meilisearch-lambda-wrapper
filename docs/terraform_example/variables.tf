@@ -46,6 +46,22 @@ variable "meilisearch_master_key" {
   sensitive   = true
 }
 
+variable "alert_email" {
+  description = "Email address to subscribe to the CloudWatch alarm SNS topic. Leave unset to skip creating the subscription (no alert emails will be sent, but the alarm and topic still exist)."
+  type        = string
+  default     = null
+
+  validation {
+    # AWS validates the endpoint format for an "email" protocol subscription,
+    # so an unset/placeholder value here would fail terraform apply outright
+    # rather than just silently not sending alerts. Requiring at least a
+    # `local-part@domain` shape here fails fast at plan time instead, with a
+    # clearer error message than AWS's API-side rejection.
+    condition     = var.alert_email == null || can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.alert_email))
+    error_message = "alert_email must be a valid email address (e.g. you@example.com), or left unset."
+  }
+}
+
 variable "meilisearch_poll_interval_ms" {
   description = "Polling interval in milliseconds for checking Meilisearch task status"
   type        = number

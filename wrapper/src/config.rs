@@ -35,6 +35,30 @@ pub const HEADERS_TO_SKIP: &[&str] = &[
     "upgrade",
 ];
 
+/// `Access-Control-Allow-Origin` value returned on every CORS preflight
+/// (`OPTIONS`) response. The wrapper has no concept of per-caller origins
+/// (it's a thin proxy, not an application server), so it allows any origin,
+/// matching the permissive CORS mock configured at the API Gateway layer in
+/// the Terraform example (`api_gateway_rest.tf`).
+pub const CORS_ALLOW_ORIGIN: &str = "*";
+
+/// `Access-Control-Allow-Methods` value returned on every CORS preflight
+/// response. Kept in sync with the method list the API Gateway example's
+/// CORS mock integration allows.
+pub const CORS_ALLOW_METHODS: &str = "DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT";
+
+/// `Access-Control-Allow-Headers` value returned on every CORS preflight
+/// response. Includes the headers Meilisearch clients commonly send
+/// (`Authorization`, `Content-Type`, its own `X-Meilisearch-Client`) plus
+/// the `X-Amz-*` headers API Gateway's SigV4 clients may send, so the same
+/// value works whether the wrapper is reached directly or through the
+/// Terraform example's API Gateway. Includes both `X-Meilisearch-Client`
+/// and lowercase `x-meilisearch-client` to match the API Gateway example's
+/// CORS mock integration, which allows both to avoid case-sensitivity
+/// quirks in some HTTP clients.
+pub const CORS_ALLOW_HEADERS: &str =
+    "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Meilisearch-Client,x-meilisearch-client";
+
 /// Port the proxy listens on for incoming HTTP requests. This is the port that
 /// AWS Lambda Web Adapter (LWA) forwards traffic to, and must match `AWS_LWA_PORT`.
 pub const PROXY_LISTEN_PORT: u16 = 8080;

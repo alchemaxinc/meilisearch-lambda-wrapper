@@ -98,4 +98,4 @@ build-docker-api-amd64: ## Build Docker image for API (amd64)
 
 .PHONY: build-docker-api-arm64
 build-docker-api-arm64: ## Build Docker image for API (arm64)
-	$(call docker_build,arm64,,$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG))
+	$(call docker_build,arm64,--load,$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG))
