@@ -172,7 +172,12 @@ fn add_task_uid_alias(body: bytes::Bytes) -> bytes::Bytes {
 /// example, the client disconnected mid-upload). Earlier, any read error
 /// here was silently replaced with an empty body, which forwarded a body
 /// that no longer matched the request and could hang the upstream call.
-async fn read_request_body(body: axum::body::Body) -> Result<bytes::Bytes, axum::response::Response> {
+///
+/// The error response is boxed because `axum::response::Response` is large
+/// (at least 128 bytes), and every caller would otherwise pay that size on
+/// the success path too. This is what `clippy::result_large_err` warns
+/// about.
+async fn read_request_body(body: axum::body::Body) -> Result<bytes::Bytes, Box<axum::response::Response>> {
     return axum::body::to_bytes(body, *config::MAX_REQUEST_BODY_SIZE)
         .await
         .map_err(|e| {
@@ -183,16 +188,20 @@ async fn read_request_body(body: axum::body::Body) -> Result<bytes::Bytes, axum:
                     limit = *config::MAX_REQUEST_BODY_SIZE,
                     "request body exceeded size limit"
                 );
-                return axum::response::Response::builder()
-                    .status(413)
-                    .body(axum::body::Body::from("request body too large"))
-                    .unwrap();
+                return Box::new(
+                    axum::response::Response::builder()
+                        .status(413)
+                        .body(axum::body::Body::from("request body too large"))
+                        .unwrap(),
+                );
             }
             tracing::error!(error = %e, "failed to read request body");
-            return axum::response::Response::builder()
-                .status(400)
-                .body(axum::body::Body::from(format!("failed to read request body: {}", e)))
-                .unwrap();
+            return Box::new(
+                axum::response::Response::builder()
+                    .status(400)
+                    .body(axum::body::Body::from(format!("failed to read request body: {}", e)))
+                    .unwrap(),
+            );
         });
 }
 
@@ -348,7 +357,7 @@ impl Proxy {
         let headers = sanitize_request_headers(request.headers());
         let body_bytes = match read_request_body(request.into_body()).await {
             Ok(bytes) => bytes,
-            Err(rejection) => return rejection,
+            Err(rejection) => return *rejection,
         };
 
         let upstream_response = match proxy
