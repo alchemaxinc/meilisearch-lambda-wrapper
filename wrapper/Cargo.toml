@@ -14,7 +14,7 @@ tracing-subscriber = { version = "0.3.23", features = ["json", "env-filter"] }
 axum = "0.8.9"
 bytes = "1.12.1"
 http-body-util = "0.1.5"
-reqwest = { version = "0.13.4", features = ["json"] }
+reqwest = { version = "0.13.5", features = ["json"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 tokio = { version = "1.53.1", features = ["macros", "net", "rt-multi-thread", "time"] }
@@ -23,4 +23,4 @@ tokio = { version = "1.53.1", features = ["macros", "net", "rt-multi-thread", "t
 integration = []
 
 [dev-dependencies]
-reqwest = { version = "0.13.4", features = ["blocking", "json"] }
+reqwest = { version = "0.13.5", features = ["blocking", "json"] }
