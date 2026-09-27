@@ -41,7 +41,7 @@ RUN apk add --no-cache curl && \
       "https://github.com/alchemaxinc/meilisearch-lambda-wrapper/releases/download/v${WRAPPER_VERSION}/wrapper-${RUST_TARGET}" && \
     chmod +x /wrapper
 
-FROM getmeili/meilisearch:v1.53
+FROM getmeili/meilisearch:v1.54
 
 WORKDIR /app
 
