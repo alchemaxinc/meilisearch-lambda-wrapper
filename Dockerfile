@@ -21,12 +21,16 @@ RUN touch wrapper/src/main.rs && cargo build \
     --manifest-path wrapper/Cargo.toml \
     --release
 
-# Runtime stage: Meilisearch + compiled wrapper binary
-FROM getmeili/meilisearch:v1.55
+# Runtime stage: Meilisearch + compiled wrapper binary (used by tests)
+FROM getmeili/meilisearch:v1.55 AS runtime
 
 WORKDIR /app
 
 COPY --from=builder /build/wrapper/target/release/wrapper ./wrapper
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:1.1.0 /lambda-adapter /opt/extensions/lambda-adapter
 
 ENTRYPOINT ["/app/wrapper"]
+
+# Lambda stage (default): runtime + AWS Lambda Web Adapter extension
+FROM runtime AS lambda
+
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:1.1.0 /lambda-adapter /opt/extensions/lambda-adapter
