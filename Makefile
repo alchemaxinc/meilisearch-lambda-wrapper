@@ -73,7 +73,7 @@ test-unit: ## Run unit tests
 
 .PHONY: test-integration
 test-integration: ## Run integration tests
-	docker build --build-arg RUST_VERSION=$(RUST_VERSION) -t $(DOCKER_IMAGE_NAME):test .
+	docker build --build-arg RUST_VERSION=$(RUST_VERSION) --target runtime -t $(DOCKER_IMAGE_NAME):test .
 	docker compose -f $(INTEGRATION_COMPOSE) up -d --wait
 	MEILI_MASTER_KEY=test-master-key-12345 cargo test \
 		--manifest-path $(WRAPPER_MANIFEST) \
@@ -85,7 +85,7 @@ test-integration: ## Run integration tests
 
 .PHONY: test-stress
 test-stress: ## Run k6 stress tests (requires k6: https://grafana.com/docs/k6/latest/set-up/install-k6/)
-	docker build --build-arg RUST_VERSION=$(RUST_VERSION) -t $(DOCKER_IMAGE_NAME):test .
+	docker build --build-arg RUST_VERSION=$(RUST_VERSION) --target runtime -t $(DOCKER_IMAGE_NAME):test .
 	docker compose -f $(INTEGRATION_COMPOSE) up -d --wait
 	k6 run $(STRESS_TEST_SCRIPT); \
 	exit_code=$$?; \

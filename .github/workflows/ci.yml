@@ -184,6 +184,9 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          # Skip the Lambda adapter stage: anonymous public.ecr.aws pulls
+          # from shared runners are rate limited (429), and tests don't need it.
+          target: runtime
           load: true
           tags: meilisearch-lambda-wrapper-api:test
           build-args: |
