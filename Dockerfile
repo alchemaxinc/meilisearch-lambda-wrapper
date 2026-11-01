@@ -22,7 +22,7 @@ RUN touch wrapper/src/main.rs && cargo build \
     --release
 
 # Runtime stage: Meilisearch + compiled wrapper binary (used by tests)
-FROM getmeili/meilisearch:v1.55 AS runtime
+FROM getmeili/meilisearch:v1.56 AS runtime
 
 WORKDIR /app
 
